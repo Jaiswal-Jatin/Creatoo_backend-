@@ -1,0 +1,119 @@
+{
+  "admin": [
+    "api/admin/login",
+    "api/admin/change-password",
+    "api/admin/me"
+  ],
+
+  "setting": [
+    "api/setting/edit/:id (GET)",
+    "api/setting/edit/:id (PUT)"
+  ],
+
+  "banner": [
+    "api/banner/all",
+    "api/banner/add (POST)",
+    "api/banner/add (GET)",
+    "api/banner/edit/:id (GET)",
+    "api/banner/edit/:id (POST)",
+    "api/banner/delete/:id",
+    "api/banner/change-status (POST)"
+  ],
+
+  "businessType": [
+    "api/businessType/all",
+    "api/businessType/add (POST)",
+    "api/businessType/edit/:id (GET)",
+    "api/businessType/edit/:id (POST)",
+    "api/businessType/delete/:id",
+    "api/businessType/change-status (POST)"
+  ],
+
+  "creatooRequest": [
+    "api/creatooRequest/all",
+    "api/creatooRequest/allRedeem",
+    "api/creatooRequest/change-status (POST)",
+    "api/creatooRequest/update-bill-amount (POST)"
+  ],
+
+  "dashboard": [
+    "api/dashboard/data-counts"
+  ],
+
+  "order": [
+    "api/order/all",
+    "api/order/details/:order_id"
+  ],
+
+  "post": [
+    "api/post/all",
+    "api/post/add (POST)",
+    "api/post/add (GET)",
+    "api/post/edit/:id (GET)",
+    "api/post/edit/:id (POST)",
+    "api/post/delete/:id",
+    "api/post/change-status (POST)",
+    "api/post/interests/:id (GET Public)"
+  ],
+
+  "promotionalNotification": [
+    "api/notification/promotional/all",
+    "api/notification/send/:id",
+    "api/notification/dynamic/all",
+    "api/notification/festival/all",
+    "api/notification/custom/all",
+    "api/notification/custom/add",
+    "api/notification/custom/store (POST)",
+    "api/notification/custom/edit/:id",
+    "api/notification/custom/update/:id (POST)"
+  ],
+
+  "referrer": [
+    "api/referrer/all",
+    "api/referrer/add (GET)",
+    "api/referrer/add (POST)",
+    "api/referrer/edit/:id",
+    "api/referrer/update/:id (POST)"
+  ],
+
+  "reportedPost": [
+    "api/reportedPost/all",
+    "api/reportedPost/getUserReportedPost",
+    "api/reportedPost/approve (POST)",
+    "api/reportedPost/reject (POST)",
+    "api/reportedPost/change-status (POST)"
+  ],
+
+  "users": {
+    "business": [
+      "api/users/business/all",
+      "api/users/business/change-status (POST)",
+      "api/users/business/edit/:id (GET)",
+      "api/users/business/edit/:id (POST)"
+    ],
+    "creator": [
+      "api/users/creator/all",
+      "api/users/creator/instagram",
+      "api/users/creator/change-status (POST)",
+      "api/users/creator/edit/:id (GET)",
+      "api/users/creator/edit/:id (POST)",
+      "api/users/creator/editInstagram/:id (GET)",
+      "api/users/creator/editInstagram/:id (POST)",
+      "api/users/update-is-top (POST)"
+    ]
+  },
+
+  "walletTransaction": [
+    "api/walletTransaction/allCreator",
+    "api/walletTransaction/allWalletRequest",
+    "api/walletTransaction/allBusiness",
+    "api/walletTransaction/change-request-submit (POST)",
+    "api/walletTransaction/check-balance"
+  ],
+
+  "withdrawRequest": [
+    "api/withdrawRequest/all",
+    "api/withdrawRequest/update-transaction (POST)",
+    "api/withdrawRequest/changeStatusToRejected (POST)"
+  ]
+}

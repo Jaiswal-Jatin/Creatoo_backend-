@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "3JG69LQK9V.com.creatoo.creatooapp",
+        "paths": ["/api/scan*"]
+      }
+    ]
+  }
+}

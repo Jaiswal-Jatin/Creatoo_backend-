@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.creatoo.app",
+      "sha256_cert_fingerprints": [
+        "08:BC:B4:A2:73:AD:4E:B6:D1:E8:98:7E:F5:98:1A:AC:B9:FE:C8:69:68:B5:DA:76:69:CA:CA:98:8E:27:38:56"
+      ]
+    }
+  }
+]
