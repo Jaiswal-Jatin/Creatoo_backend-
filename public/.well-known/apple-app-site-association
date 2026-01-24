@@ -3,9 +3,12 @@
     "apps": [],
     "details": [
       {
-        "appID": "3JG69LQK9V.com.creatoo.creatooapp",
-        "paths": ["/api/scan*"]
+        "appIDs": ["TEAMID.com.creatoo.creatooapp"],
+        "paths": ["/api/scan", "/api/scan/*", "/api/scan?*"]
       }
     ]
+  },
+  "webcredentials": {
+    "apps": ["TEAMID.com.creatoo.creatooapp"]
   }
 }

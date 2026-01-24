@@ -140,10 +140,10 @@ export const startDb = async () => {
   try {
     await sequelize.authenticate();
     await sequelize.sync();
-    console.log("✅ Database connected & synced");
+    return { status: true, message: "Connected & Synced" };
   } catch (err) {
     console.error("❌ Database connection failed:", err);
-    process.exit(1);
+    return { status: false, message: String(err) };
   }
 };
 

@@ -109,12 +109,4 @@ router.post(
   AuthController.changeBusinessActiveStatus
 );
 
-// CREATE business user (admin-side registration)
-router.post(
-  "/create",
-  authJwt,
-  adminOnly,
-  upload.single("business_image"),
-  AuthController.createBusiness
-)
 export default router;

@@ -5,10 +5,9 @@ import User from "../models/User";
 import Post from "../models/Post";
 import PostInterest from "../models/PostInterest";
 import Payment from "../models/Payment";
-import NewUserNotification from "../models/NewUserNotification";
+import UserNotification from "../models/UserNotification";
 import TemporaryOrder from "../models/TemporaryOrder";
 import Order from "../models/Order"; // ✅ orders table
-import { sendPushNotification } from "../services/notification.service";
 
 class PaymentController {
   // =======================================
@@ -150,16 +149,15 @@ class PaymentController {
 
         notifications.push({
           user_id: creatorId,
-          notification_subject: "Payment Release Creator",
-          notification_text: `Payment for your interest in post ID ${postId} has been marked as done.`,
-          is_redeemed: "CreatorView",
-          created_at: now,
-          updated_at: now,
-        } as any);
+          title: "Payment Release Creator",
+          description: `Payment for your interest in post ID ${postId} has been marked as done.`,
+          createdAt: now,
+          updatedAt: now,
+        });
       }
 
       if (notifications.length) {
-        await (NewUserNotification as any).bulkCreate(notifications);
+        await UserNotification.bulkCreate(notifications);
       }
 
       await Post.update({ post_status: "3" }, { where: { id: postId } });
@@ -551,7 +549,6 @@ class PaymentController {
         (tempOrder as any).bill_amount
     );
     const finalBill = round2((tempOrder as any).final_bill_amount);
-    const settlementAmount = round2((tempOrder as any).settlement_amount ?? 0);
 
     // mark temp order as success (like Laravel)
     (tempOrder as any).status = "success";
@@ -646,76 +643,7 @@ class PaymentController {
       await (user as any).save();
     }
 
-    // 5) Update business wallet balance with settlement amount
-    if (business && settlementAmount > 0) {
-      const currentWallet = Number((business as any).wallet || 0);
-      (business as any).wallet = currentWallet + settlementAmount;
-      await (business as any).save();
-    }
-
-    // 6) Send notifications to business user about payment received
-    if (business) {
-      try {
-        const title = "Payment Received";
-        const description = `You received a payment of ₹${finalBill.toFixed(2)} from ${receiptName}. Settlement amount: ₹${settlementAmount.toFixed(2)}`;
-        
-        console.log(`[Notification] Creating business notification for user_id: ${businessId}, order_id: ${orderId}`);
-        await (NewUserNotification as any).create({
-          user_id: businessId,
-          order_id: orderId,
-          business_id: businessId,
-          notification_subject: title,
-          notification_text: description,
-          is_redeemed: "BusinessView",
-        } as any);
-
-        if (business.remember_token) {
-          console.log(`[Push] Sending push to business user_id: ${businessId}, token: ${business.remember_token.substring(0, 10)}...`);
-          const result = await sendPushNotification(
-            { title, description },
-            [business.remember_token]
-          );
-          console.log(`[Push] Business push result:`, JSON.stringify(result));
-        } else {
-          console.warn(`[Push] Business user_id: ${businessId} has no remember_token`);
-        }
-      } catch (error) {
-        console.error("Error sending business notification:", error);
-      }
-    }
-
-    // 7) Send notifications to the customer (user) about payment made
-    if (user) {
-      try {
-        const title = "Payment Successful";
-        const description = `You have successfully paid ₹${finalBill.toFixed(2)} to ${businessName}.`;
-        
-        console.log(`[Notification] Creating user notification for user_id: ${userId}, order_id: ${orderId}`);
-        await (NewUserNotification as any).create({
-          user_id: userId,
-          order_id: orderId,
-          business_id: businessId,
-          notification_subject: title,
-          notification_text: description,
-          is_redeemed: "CreatorView",
-        } as any);
-
-        if (user.remember_token) {
-          console.log(`[Push] Sending push to user user_id: ${userId}, token: ${user.remember_token.substring(0, 10)}...`);
-          const result = await sendPushNotification(
-            { title, description },
-            [user.remember_token]
-          );
-          console.log(`[Push] User push result:`, JSON.stringify(result));
-        } else {
-          console.warn(`[Push] User user_id: ${userId} has no remember_token`);
-        }
-      } catch (error) {
-        console.error("Error sending user notification:", error);
-      }
-    }
-
-    // 7) Response matching your Laravel $responseData structure
+    // 5) Response matching your Laravel $responseData structure
     return {
       business_id: businessId,
       business_name: businessName,

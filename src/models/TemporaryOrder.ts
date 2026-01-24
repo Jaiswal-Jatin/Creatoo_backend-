@@ -87,7 +87,7 @@ class TemporaryOrder
 TemporaryOrder.init(
   {
     id: {
-      type: DataTypes.BIGINT.UNSIGNED,
+      type: DataTypes.INTEGER.UNSIGNED,
       primaryKey: true,
       autoIncrement: true,
     },

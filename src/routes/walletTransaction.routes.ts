@@ -41,7 +41,7 @@ router.post(
 router.get(
   '/check-balance',
   authJwt,
-  adminOnly,
+  // adminOnly,
   (req, res) =>
     walletTransactionController.checkBalance(req, res)
 );

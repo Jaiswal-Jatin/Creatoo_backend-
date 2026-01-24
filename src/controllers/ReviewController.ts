@@ -279,10 +279,6 @@ class ReviewController {
           COALESCE(business_user.business_name, users.business_name) AS business_name,
           COALESCE(business_user.business_image, users.business_image) AS business_image,
           reviews.experience,
-          reviews.expectation,
-          reviews.recommend,
-          reviews.fair_money,
-          reviews.interaction,
           reviews.review_text,
           reviews.created_at,
           business_user.id AS business_id
@@ -318,10 +314,6 @@ class ReviewController {
                     business_name: r.business_name || "Unknown",
                     business_image: r.business_image || null,
                     experience: r.experience,
-                    expectation: r.expectation,
-                    recommend: r.recommend,
-                    fair_money: r.fair_money,
-                    interaction: r.interaction,
                     review_text: r.review_text,
                     days_ago,
                 };

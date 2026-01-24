@@ -72,6 +72,8 @@ class WebApiController {
           data: null,
         });
       }
+      
+      console.log(`[DEBUG] Fetching notifications for User: ${userIdNum}, Role: ${roleIdNum}, Where:`, JSON.stringify(where));
 
       const { rows, count } = await NewUserNotification.findAndCountAll({
         where,

@@ -39,13 +39,13 @@ class WithdrawRequest
 WithdrawRequest.init(
   {
     id: {
-      type: DataTypes.BIGINT.UNSIGNED,
+      type: DataTypes.INTEGER.UNSIGNED,
       autoIncrement: true,
       primaryKey: true,
     },
 
     creator_id: {
-      type: DataTypes.BIGINT.UNSIGNED,
+      type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
     },
 

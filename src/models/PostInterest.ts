@@ -35,16 +35,16 @@ class PostInterest
 PostInterest.init(
   {
     id: {
-      type: DataTypes.INTEGER.UNSIGNED,
+      type: DataTypes.BIGINT.UNSIGNED,
       primaryKey: true,
       autoIncrement: true,
     },
     post_id: {
-      type: DataTypes.INTEGER.UNSIGNED,
+      type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
     },
     creator_id: {
-      type: DataTypes.INTEGER.UNSIGNED,
+      type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
     },
     is_cart: {
@@ -77,15 +77,8 @@ PostInterest.init(
   }
 );
 
-// Relations
-PostInterest.belongsTo(User, {
-  foreignKey: "creator_id",
-  as: "creator",
-});
-
-PostInterest.belongsTo(Post, {
-  foreignKey: "post_id",
-  as: "post",
-});
+// NOTE: Association removed - live database has no primary key on posts.id
+// PostInterest.belongsTo(User, { foreignKey: "creator_id", as: "creator" });
+// PostInterest.belongsTo(Post, { foreignKey: "post_id", as: "post" });
 
 export default PostInterest;

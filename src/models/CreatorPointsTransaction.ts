@@ -70,16 +70,16 @@ class CreatorPointsTransaction
 CreatorPointsTransaction.init(
   {
     id: {
-      type: DataTypes.BIGINT.UNSIGNED,
+      type: DataTypes.INTEGER.UNSIGNED,
       primaryKey: true,
       autoIncrement: true,
     },
     user_id: {
-      type: DataTypes.BIGINT.UNSIGNED,
+      type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
     },
     business_id: {
-      type: DataTypes.BIGINT.UNSIGNED,
+      type: DataTypes.INTEGER.UNSIGNED,
       allowNull: true,
     },
     order_id: {

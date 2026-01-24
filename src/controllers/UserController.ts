@@ -474,12 +474,7 @@ class UserController {
         if (totalReviews > 0) {
           const [avgRow]: any = await sequelize.query(
             `
-            SELECT 
-              ROUND(AVG(experience), 1) AS avg_experience,
-              ROUND(AVG(expectation), 1) AS avg_expectation,
-              ROUND(AVG(interaction), 1) AS avg_interaction,
-              CONCAT(ROUND(AVG(recommend) * 20, 0), '%') AS avg_recommend,
-              CONCAT(ROUND(AVG(fair_money) * 20, 0), '%') AS avg_fair_money
+            SELECT ROUND(AVG(experience), 1) AS avg_experience
             FROM reviews
             WHERE business_id = :businessId
           `,
@@ -492,24 +487,8 @@ class UserController {
           averageRatingsData = {
             avg_experience:
               avgRow && avgRow.avg_experience !== null
-                ? String(avgRow.avg_experience)
-                : "0",
-            avg_expectation:
-              avgRow && avgRow.avg_expectation !== null
-                ? String(avgRow.avg_expectation)
-                : "0",
-            avg_interaction:
-              avgRow && avgRow.avg_interaction !== null
-                ? String(avgRow.avg_interaction)
-                : "0",
-            avg_recommend:
-              avgRow && avgRow.avg_recommend !== null
-                ? avgRow.avg_recommend
-                : "0%",
-            avg_fair_money:
-              avgRow && avgRow.avg_fair_money !== null
-                ? avgRow.avg_fair_money
-                : "0%",
+                ? Number(avgRow.avg_experience)
+                : null,
           };
         }
 

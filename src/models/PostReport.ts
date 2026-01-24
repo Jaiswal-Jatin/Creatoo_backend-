@@ -16,16 +16,16 @@ class PostReport extends Model {
 PostReport.init(
   {
     id: {
-      type: DataTypes.INTEGER.UNSIGNED,
+      type: DataTypes.BIGINT.UNSIGNED,
       primaryKey: true,
       autoIncrement: true,
     },
     post_id: {
-      type: DataTypes.INTEGER.UNSIGNED,
+      type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
     },
     user_id: {
-      type: DataTypes.INTEGER.UNSIGNED,
+      type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
     },
     description: {
@@ -49,15 +49,8 @@ PostReport.init(
   }
 );
 
-// relations
-PostReport.belongsTo(Post, {
-  foreignKey: "post_id",
-  as: "post",
-});
-
-PostReport.belongsTo(User, {
-  foreignKey: "user_id",
-  as: "user",
-});
+// NOTE: Associations removed - live database has no primary key on posts.id
+// PostReport.belongsTo(Post, { foreignKey: "post_id", as: "post" });
+// PostReport.belongsTo(User, { foreignKey: "user_id", as: "user" });
 
 export default PostReport;

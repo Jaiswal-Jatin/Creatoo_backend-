@@ -151,7 +151,7 @@ const AuthController = {
   // ---------- VERIFY CREATOR OTP ----------
   verifyCreatorOtp: async (req: Request, res: Response) => {
     try {
-      const { mobile, otp, device_id } = req.body;
+      const { mobile, otp, device_id, remember_token } = req.body;
       if (!mobile || !otp)
         return res.status(422).json({
           status: false,
@@ -166,19 +166,13 @@ const AuthController = {
 
       if (user) {
         if (device_id) {
-          // Clear token from other users with same device_id
           await User.update(
             { remember_token: null },
             { where: { device_id, id: { [Op.ne]: user.id } } }
           );
-          
-          const updateData: any = { device_id };
-          if (req.body.remember_token) {
-            updateData.remember_token = req.body.remember_token;
-          }
-          await user.update(updateData);
-        } else if (req.body.remember_token) {
-          await user.update({ remember_token: req.body.remember_token });
+          await user.update({ device_id, remember_token: remember_token || null });
+        } else if (remember_token) {
+          await user.update({ remember_token });
         }
 
         if (!user.name)
@@ -397,7 +391,7 @@ const AuthController = {
   // ---------- VERIFY BUSINESS OTP ----------
   verifyBusinessOtp: async (req: Request, res: Response) => {
     try {
-      const { business_mobile, otp, device_id } = req.body;
+      const { business_mobile, otp, device_id, remember_token } = req.body;
       if (!business_mobile || !otp)
         return res.status(422).json({
           status: false,
@@ -417,19 +411,13 @@ const AuthController = {
       if (!valid) return res.json({ status: false, message: "Invalid OTP" });
 
       if (device_id) {
-        // Clear token from other users with same device_id
         await User.update(
           { remember_token: null },
           { where: { device_id, id: { [Op.ne]: user.id } } }
         );
-        
-        const updateData: any = { device_id };
-        if (req.body.remember_token) {
-          updateData.remember_token = req.body.remember_token;
-        }
-        await user.update(updateData);
-      } else if (req.body.remember_token) {
-        await user.update({ remember_token: req.body.remember_token });
+        await user.update({ device_id, remember_token: remember_token || null });
+      } else if (remember_token) {
+        await user.update({ remember_token });
       }
 
       const token = issueToken(user);

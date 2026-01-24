@@ -81,7 +81,7 @@ Post.init(
   {
     id: { type: DataTypes.BIGINT.UNSIGNED, autoIncrement: true, primaryKey: true },
 
-    user_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false },
+    user_id: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     name: { type: DataTypes.STRING(255), allowNull: false },
     description: { type: DataTypes.STRING(255), allowNull: false },
     budget: { type: DataTypes.INTEGER, allowNull: false },

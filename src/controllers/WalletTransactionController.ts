@@ -336,20 +336,12 @@ class WalletTransactionController {
   async businessWalletTransaction(req: Request, res: Response) {
     try {
       const userId = (req as any).user?.id;
-      const { search, from_date, to_date } = req.body as {
-        search?: string;
-        from_date?: string;
-        to_date?: string;
-      };
 
       if (!userId) {
         return res.status(401).json({
           status: false,
           message: "Unauthorized",
-          data: {
-            business_wallet: 0,
-            transactions: [],
-          },
+          data: [],
         });
       }
 
@@ -359,89 +351,52 @@ class WalletTransactionController {
         return res.status(403).json({
           status: false,
           message: "Access allowed only for business users",
-          data: {
-            business_wallet: 0,
-            transactions: [],
-          },
+          data: [],
         });
       }
 
-      // Get business wallet balance from users table
-      const businessWallet = Number(user.wallet || 0);
-
-      // Build query for orders where this business received payments
-      const replacements: any = {
-        businessId: userId,
-      };
-
-      let searchCondition = "";
-      if (search && String(search).trim() !== "") {
-        searchCondition =
-          " AND (o.order_id LIKE :search OR u.name LIKE :search)";
-        replacements.search = `%${search}%`;
-      }
-
-      let dateCondition = "";
-      if (from_date && to_date) {
-        dateCondition = " AND o.created_at BETWEEN :fromDate AND :toDate";
-        const fromDateObj = new Date(from_date);
-        const toDateObj = new Date(to_date);
-        toDateObj.setHours(23, 59, 59, 999);
-        replacements.fromDate = fromDateObj;
-        replacements.toDate = toDateObj;
-      }
-
-      // Query orders table to get transactions for this business
-      const sql = `
-        SELECT
-          u.name AS received_from,
-          o.final_bill_amount AS total_bill,
-          o.settlement_amount,
-          o.discount_percentage,
-          o.created_at,
-          o.order_id
-        FROM orders o
-        INNER JOIN users u ON o.user_id = u.id
-        WHERE o.business_id = :businessId
-        ${searchCondition}
-        ${dateCondition}
-        ORDER BY o.created_at DESC
-      `;
-
-      const orders = await sequelize.query(sql, {
-        replacements,
-        type: QueryTypes.SELECT,
+      const transactions = await WalletTransaction.findAll({
+        where: { user_id: userId },
+        order: [["created_at", "DESC"]],
       });
 
-      // Format transactions for mobile app
-      const transactions = orders.map((order: any) => ({
-        received_from: order.received_from || "Unknown",
-        total_bill: order.total_bill ? String(order.total_bill) : "0",
-        settlement_amount: order.settlement_amount ? Number(order.settlement_amount) : 0,
-        discount_percentage: order.discount_percentage
-          ? Number(order.discount_percentage)
-          : 0,
-        created_at: order.created_at,
-        order_id: order.order_id,
-      }));
+      if (!transactions.length) {
+        return res.status(200).json({
+          status: true,
+          message: "No wallet transactions found",
+          data: [],
+        });
+      }
+
+      const data = transactions.map((t) => {
+        const json: any = t.toJSON();
+        return {
+          id: json.id,
+          user_id: json.user_id,
+          amount: json.amount,
+          credit_debit: json.credit_debit,
+          is_withdraw_request: json.is_withdraw_request,
+          transaction_id: json.transaction_id,
+          remark: json.remark,
+          created_at: json.created_at,
+          created_at_formatted: new Date(json.created_at)
+            .toISOString()
+            .replace("T", " ")
+            .slice(0, 19),
+        };
+      });
 
       return res.status(200).json({
         status: true,
         message: "Data found Successfully",
-        data: {
-          business_wallet: businessWallet,
-          transactions: transactions,
-        },
+        data,
       });
     } catch (err) {
       console.error("businessWalletTransaction error:", err);
       return res.status(500).json({
         status: false,
         message: "Server error",
-        data: {
-          business_wallet: 0,
-          transactions: [],
-        },
+        data: [],
       });
     }
   }

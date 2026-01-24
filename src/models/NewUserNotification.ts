@@ -9,8 +9,8 @@ export interface NewUserNotificationAttrs {
   notification_subject?: string | null;
   notification_text: string | null;
   is_redeemed: string | number | null;
-  created_at?: Date;
-  updated_at?: Date;
+  created_at?: Date | string;
+  updated_at?: Date | string;
 }
 
 export type NewUserNotificationCreationAttrs = Optional<
@@ -29,8 +29,8 @@ class NewUserNotification
   public notification_subject!: string | null;
   public notification_text!: string | null;
   public is_redeemed!: string | number | null;
-  public created_at!: Date;
-  public updated_at!: Date;
+  public created_at!: Date | string;
+  public updated_at!: Date | string;
 }
 
 NewUserNotification.init(

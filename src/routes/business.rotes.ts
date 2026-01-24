@@ -11,7 +11,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 // Prefix: /api/business
 
-router.post("/setDiscount", authJwt, BusinessController.setDiscount);
+router.post("/setDiscount", authJwt,  BusinessController.setDiscount);
 
 router.post(
   "/businessDescription",
@@ -34,14 +34,8 @@ router.post(
   BusinessController.businessDescription
 );
 
-router.post(
-  "/getBusinessList",
-  authJwt,
-  BusinessController.getBusinessList
-);
+router.post("/getBusinessList", authJwt, BusinessController.getBusinessList);
 
-router.post("/customerSummary",  authJwt,
- BusinessController.customerSummary);
-
+router.post("/customerSummary", authJwt, BusinessController.customerSummary);
 
 export default router;
