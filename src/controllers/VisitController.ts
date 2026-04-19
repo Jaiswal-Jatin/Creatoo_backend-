@@ -3,6 +3,7 @@ import { Op } from "sequelize";
 import Card from "../models/Card";
 import Visit, { VisitTier } from "../models/Visit";
 import User from "../models/User";
+import BusinessAssociate from "../models/BusinessAssociate";
 
 interface AuthUser {
   id: number; // logged-in id (business for business APIs, user for user APIs)
@@ -44,6 +45,60 @@ class VisitController {
   }
 
   /**
+   * Helper: Check if a business is a main/parent business (has direct associates)
+   * Returns true if this business has associates, false if it's an associate or standalone
+   */
+  private async isMainBusiness(businessId: number): Promise<boolean> {
+    const associates = await BusinessAssociate.findOne({
+      where: { parent_business_id: businessId },
+    });
+    return !!associates;
+  }
+
+  /**
+   * Helper: Get all business IDs in the associate network (recursive)
+   * Returns ALL businesses connected in the hierarchy (parents, associates, and associates of parents)
+   */
+  private async getAssociateNetwork(businessId: number): Promise<number[]> {
+    const visited = new Set<number>();
+    const toProcess = [businessId];
+
+    while (toProcess.length > 0) {
+      const currentId = toProcess.shift()!;
+      
+      if (visited.has(currentId)) continue;
+      visited.add(currentId);
+
+      // Get all direct associates (where current is parent)
+      const associates = await BusinessAssociate.findAll({
+        where: { parent_business_id: currentId },
+        attributes: ['associate_business_id']
+      });
+
+      // Get all parent businesses (where current is associate)
+      const parents = await BusinessAssociate.findAll({
+        where: { associate_business_id: currentId },
+        attributes: ['parent_business_id']
+      });
+
+      // Add to processing queue
+      associates.forEach((a: any) => {
+        if (!visited.has(a.associate_business_id)) {
+          toProcess.push(a.associate_business_id);
+        }
+      });
+
+      parents.forEach((p: any) => {
+        if (!visited.has(p.parent_business_id)) {
+          toProcess.push(p.parent_business_id);
+        }
+      });
+    }
+
+    return Array.from(visited);
+  }
+
+  /**
    * Tier logic:
    * - No history => "new"
    * - last visit 0–7 days => "premium"
@@ -60,6 +115,26 @@ class VisitController {
     if (diffDays <= 7) return "premium";
     if (diffDays <= 15) return "elite";
     return "core";
+  }
+
+  /**
+   * Associate-aware tier calculation:
+   * Considers visits to any business in the associate network
+   */
+  private async calculateAssociateTier(cardNumber: number, businessId: number): Promise<VisitTier> {
+    // Get all business IDs in the associate network
+    const networkIds = await this.getAssociateNetwork(businessId);
+    
+    // Find the last visit for this card across the entire network
+    const lastVisit = await Visit.findOne({
+      where: { 
+        card_number: cardNumber, 
+        business_id: { [Op.in]: networkIds } 
+      },
+      order: [["time", "DESC"]],
+    });
+
+    return this.calculateTier(lastVisit);
   }
 
   /**
@@ -108,12 +183,44 @@ class VisitController {
         order: [["time", "DESC"]],
       });
 
-      const tier = this.calculateTier(lastVisit);
+      // Use associate-aware tier calculation
+      const tier = await this.calculateAssociateTier(cardNumber, businessId);
 
-      // 3) Full history for this card & business
-      const history = await Visit.findAll({
-        where: { card_number: cardNumber, business_id: businessId },
-        order: [["time", "DESC"]],
+      // 3) Full history for this card & business (or network if main business)
+      const isMainBusiness = await this.isMainBusiness(businessId);
+      
+      let history;
+      let businessIdsList: number[];
+      
+      if (isMainBusiness) {
+        // Main business sees visits from entire network
+        const networkIds = await this.getAssociateNetwork(businessId);
+        businessIdsList = networkIds;
+        history = await Visit.findAll({
+          where: { card_number: cardNumber, business_id: { [Op.in]: networkIds } },
+          order: [["time", "DESC"]],
+        });
+      } else {
+        // Associate business sees only their own visits
+        businessIdsList = [businessId];
+        history = await Visit.findAll({
+          where: { card_number: cardNumber, business_id: businessId },
+          order: [["time", "DESC"]],
+        });
+      }
+
+      // Load business information for network visits
+      const businesses = await User.findAll({
+        where: { id: { [Op.in]: businessIdsList } },
+        attributes: ["id", "business_name", "business_image"],
+      });
+
+      const businessMap = new Map<number, { business_name: string | null; business_image: string | null }>();
+      businesses.forEach((b: any) => {
+        businessMap.set(b.id, {
+          business_name: b.business_name ?? null,
+          business_image: b.business_image ?? null,
+        });
       });
 
       // 4) Load users for user_image
@@ -167,12 +274,15 @@ class VisitController {
         visit_history: history.map((v) => {
           const uid = v.user_id ? Number(v.user_id) : null;
           const u = uid && userMap.has(uid) ? userMap.get(uid)! : null;
+          const businessInfo = businessMap.get(v.business_id);
 
           return {
             id: v.id,
             user_id: v.user_id,
             card_number: v.card_number,
             business_id: v.business_id,
+            business_name: businessInfo?.business_name ?? null,
+            business_image: businessInfo?.business_image ?? null,
             tier: v.tier,
             time: this.formatIST(v.time), // IST
             user_image: u?.user_image ?? null,
@@ -233,7 +343,8 @@ class VisitController {
         order: [["time", "DESC"]],
       });
 
-      const tier = this.calculateTier(lastVisit);
+      // Use associate-aware tier calculation
+      const tier = await this.calculateAssociateTier(cardNumber, businessId);
 
       await Visit.create({
         user_id: card.user_id as any,
@@ -248,6 +359,20 @@ class VisitController {
         order: [["time", "DESC"]],
       });
 
+      // Load business information for the response
+      const businesses = await User.findAll({
+        where: { id: businessId },
+        attributes: ["id", "business_name", "business_image"],
+      });
+
+      const businessMap = new Map<number, { business_name: string | null; business_image: string | null }>();
+      businesses.forEach((b: any) => {
+        businessMap.set(b.id, {
+          business_name: b.business_name ?? null,
+          business_image: b.business_image ?? null,
+        });
+      });
+
       return res.status(200).json({
         status: true,
         message: "Visit recorded successfully",
@@ -257,14 +382,19 @@ class VisitController {
           name: card.name,
           user_id: card.user_id,
         },
-        visit_history: history.map((v) => ({
-          id: v.id,
-          user_id: v.user_id,
-          card_number: v.card_number,
-          business_id: v.business_id,
-          tier: v.tier,
-          time: this.formatIST(v.time), // IST
-        })),
+        visit_history: history.map((v) => {
+          const businessInfo = businessMap.get(v.business_id);
+          return {
+            id: v.id,
+            user_id: v.user_id,
+            card_number: v.card_number,
+            business_id: v.business_id,
+            business_name: businessInfo?.business_name ?? null,
+            business_image: businessInfo?.business_image ?? null,
+            tier: v.tier,
+            time: this.formatIST(v.time), // IST
+          };
+        }),
       });
     } catch (err: any) {
       console.error("createVisit error:", err);
@@ -279,7 +409,10 @@ class VisitController {
    * BUSINESS SIDE
    * GET /api/visit/history
    *  - summary: counts of premium / elite / core / new
-   *  - days: visits grouped by date (for this business)
+   *  - days: visits grouped by date (for this business and associate businesses)
+   *  - Main business sees all visits including associate business visits with business names
+   *  - Associate business sees only their own visits
+   *  - Mobile clients can request only main business visits via ?mobile=true
    */
   async history(req: AuthRequest, res: Response) {
     try {
@@ -290,10 +423,43 @@ class VisitController {
       }
       const businessId = req.user.id;
 
-      const visits = await Visit.findAll({
-        where: { business_id: businessId },
-        order: [["time", "DESC"]],
-      });
+      // Check if this is a main business (has direct associates)
+      const main = await this.isMainBusiness(businessId);
+      
+      // Check if mobile client is requesting (query param: ?mobile=true)
+      const isMobileClient = req.query.mobile === "true";
+      
+      let visits;
+      let businessIds: number[];
+      
+      if (main) {
+        // Main business logic:
+        // - Web: gets all visits from their network
+        // - Mobile: gets only their own main business visits
+        if (isMobileClient) {
+          // Mobile: show only main business visits, not network
+          businessIds = [businessId];
+          visits = await Visit.findAll({
+            where: { business_id: businessId },
+            order: [["time", "DESC"]],
+          });
+        } else {
+          // Web: show full network
+          const networkIds = await this.getAssociateNetwork(businessId);
+          businessIds = networkIds;
+          visits = await Visit.findAll({
+            where: { business_id: { [Op.in]: businessIds } },
+            order: [["time", "DESC"]],
+          });
+        }
+      } else {
+        // Associate business gets only their own visits
+        businessIds = [businessId];
+        visits = await Visit.findAll({
+          where: { business_id: businessId },
+          order: [["time", "DESC"]],
+        });
+      }
 
       if (visits.length === 0) {
         return res.status(200).json({
@@ -316,6 +482,20 @@ class VisitController {
         cardNameMap.set(c.number, c.name ?? null);
       });
 
+      // Load business information for all businesses in the visit data
+      const businesses = await User.findAll({
+        where: { id: { [Op.in]: businessIds } },
+        attributes: ["id", "business_name", "business_image"],
+      });
+
+      const businessMap = new Map<number, { business_name: string | null; business_image: string | null }>();
+      businesses.forEach((b: any) => {
+        businessMap.set(b.id, {
+          business_name: b.business_name ?? null,
+          business_image: b.business_image ?? null,
+        });
+      });
+
       const summary: Record<VisitTier, number> = {
         premium: 0,
         elite: 0,
@@ -328,6 +508,8 @@ class VisitController {
         name: string | null;
         tier: VisitTier;
         time: string;
+        business_id?: number;
+        business_name?: string | null;
       };
 
       type DayGroup = {
@@ -348,11 +530,15 @@ class VisitController {
         }
 
         const group = daysMap.get(dateKey)!;
+        const businessInfo = businessMap.get(v.business_id);
+        
         group.visits.push({
           card_number: v.card_number,
           name: cardNameMap.get(v.card_number) ?? null,
           tier: v.tier,
           time: this.formatIST(v.time), // IST
+          business_id: v.business_id,
+          business_name: businessInfo?.business_name ?? null,
         });
       }
 
@@ -364,6 +550,11 @@ class VisitController {
         status: true,
         summary,
         days,
+        is_main_business: main,
+        network_businesses: businessIds.map(id => ({
+          business_id: id,
+          business_name: businessMap.get(id)?.business_name ?? null,
+        })),
       });
     } catch (err: any) {
       console.error("history error:", err);
@@ -453,7 +644,7 @@ class VisitController {
         });
       });
 
-      // 5) Build restaurant-wise structure WITH visits
+      // 5) Build restaurant-wise structure WITH visits and associate business info
       const restaurants = Array.from(byBusiness.entries()).map(
         ([businessId, bizVisits]) => {
           const lastVisit = bizVisits[0]; // already sorted DESC
@@ -476,6 +667,8 @@ class VisitController {
               time: this.formatIST(v.time), // IST
               tier: v.tier,
               card_number: v.card_number,
+              business_id: v.business_id,
+              business_name: bizInfo.business_name,
             })),
           };
         }

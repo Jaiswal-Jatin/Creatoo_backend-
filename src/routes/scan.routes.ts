@@ -15,7 +15,7 @@ const APP_STORE_URL = "https://apps.apple.com/app/creatoo/id000000000"; // TODO:
  * 
  * Flow:
  * 1. User scans QR code with camera or browser
- * 2. Link format: https://api.creatoo.co.in/api/scan?businessId=XXX
+ * 2. Link format: http://dev-api.creatoo.co.in/api/scan?businessId=XXX
  * 3. If app is installed: App opens directly via App Links/Universal Links
  * 4. If app NOT installed: Browser hits this route → redirects to appropriate store
  * 

@@ -1,3 +1,10 @@
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Business Type Service. Manages categories for businesses (e.g., Food, Fashion).
+ * Used By: BusinessTypeController
+ * Database Model: BusinessType
+ * Critical: No
+ */
 import BusinessType from '../models/BusinessType';
 
 export default class BusinessTypeService {

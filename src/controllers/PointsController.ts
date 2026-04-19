@@ -1,4 +1,12 @@
-// src/controllers/PointsController.ts
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Points Controller. Handles loyalty points transactions and transfers.
+ * Used By: Admin Panel, User Mobile App, Business Admin App
+ * API Connected: /api/points/*
+ * Database Model: CreatorPointsTransaction (via pointsService)
+ * Critical: Yes
+ * Notes: Manages the point-based loyalty system between businesses and creators.
+ */
 import { Request, Response } from "express";
 import pointsService from "../services/points.service";
 

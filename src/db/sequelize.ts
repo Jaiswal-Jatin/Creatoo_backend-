@@ -1,3 +1,12 @@
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Database Configuration using Sequelize ORM.
+ * Used By: Backend System
+ * API Connected: N/A
+ * Database Model: N/A (Initializes connection to MySQL)
+ * Critical: Yes
+ * Notes: Uses MySQL dialect and underscores for field names.
+ */
 import { Sequelize } from 'sequelize';
 import env from '../config/env';
 

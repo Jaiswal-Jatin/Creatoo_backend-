@@ -1,5 +1,5 @@
 import { DataTypes, Model, Optional } from "sequelize";
-import sequelize from "../db/sequelize";
+import sequelize from "../config/db";
 import User from "./User";
 
 export interface WithdrawRequestAttributes {

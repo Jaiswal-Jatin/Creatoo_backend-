@@ -1,6 +1,6 @@
 // src/models/Version.ts
 import { DataTypes, Model, Optional } from "sequelize";
-import sequelize from "../db/sequelize";
+import sequelize from "../config/db";
 
 export interface VersionAttributes {
   id: number;

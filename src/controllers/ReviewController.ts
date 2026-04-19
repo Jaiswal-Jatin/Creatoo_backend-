@@ -7,7 +7,8 @@ import Order from "../models/Order"; // ✅ your Order model
 import CreatorPointsTransaction from "../models/CreatorPointsTransaction";
 import NewUserNotification from "../models/NewUserNotification";
 import sequelize from "../db/sequelize";
-import { sendPushNotification } from "../services/notification.service";
+// import { sendPushNotification } from "../services/notification.service"; // OLD: Using legacy FCM HTTP API
+import { sendPushNotification } from "../services/sendPushNotification"; // NEW: Using Firebase Admin SDK
 
 class ReviewController {
     // POST /api/review/reviewSubmit  (Laravel: reviewSubmit)

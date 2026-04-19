@@ -1,3 +1,10 @@
+/**
+ * Module: Backend (API Server)
+ * File Purpose: SMS Service. Integrates with MSG91 for OTP delivery.
+ * Used By: AuthController
+ * Database Model: N/A
+ * Critical: Yes (Authentication)
+ */
 import axios from 'axios';
 import env from '../config/env';
 

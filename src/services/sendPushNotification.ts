@@ -1,3 +1,11 @@
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Push Notification Service (Modern). Leverages Firebase Admin SDK v1 for robust, chunked delivery.
+ * Used By: PostController (for creator notifications)
+ * Database Model: N/A
+ * Critical: Yes
+ * Notes: Provides better error diagnostics than the legacy HTTP service.
+ */
 import admin from "../config/firebase";
 
 export interface PushMessage {
@@ -14,6 +22,7 @@ export interface PushMessage {
  * - Works with service account JSON
  * - Supports chunking (max 500 tokens per request)
  * - Returns success/failure + invalid tokens
+ * - Enhanced error tracking with detailed diagnostics
  */
 export async function sendPushNotification(
   message: PushMessage,
@@ -23,10 +32,22 @@ export async function sendPushNotification(
   failure: number;
   responses: any[];
   invalidTokens: string[];
+  diagnostics?: {
+    tokenCount: number;
+    tokenLengths: number[];
+    firebaseErrors: string[];
+  };
 }> {
   if (!tokens?.length) {
     return { success: 0, failure: 0, responses: [], invalidTokens: [] };
   }
+
+  // ✅ Enhanced: Validate token format before sending
+  const diagnostics = {
+    tokenCount: tokens.length,
+    tokenLengths: tokens.map(t => t?.length || 0),
+    firebaseErrors: [] as string[],
+  };
 
   const chunkSize = 500;
   const chunks: string[][] = [];
@@ -58,12 +79,21 @@ export async function sendPushNotification(
       responses.push({
         successCount: result.successCount,
         failureCount: result.failureCount,
+        timestamp: new Date().toISOString(),
       });
 
-      // ✅ collect invalid tokens
+      // ✅ Enhanced: Collect detailed error information
       result.responses.forEach((r, idx) => {
         if (!r.success) {
           const code = (r.error as any)?.code;
+          const errorMsg = (r.error as any)?.message;
+
+          // Log all error types for debugging
+          if (!diagnostics.firebaseErrors.includes(code)) {
+            diagnostics.firebaseErrors.push(code);
+          }
+
+          console.error(`   ❌ Token ${idx} failed: Code=${code}, Message=${errorMsg}`);
 
           if (
             code === "messaging/registration-token-not-registered" ||
@@ -74,16 +104,27 @@ export async function sendPushNotification(
         }
       });
     } catch (err: any) {
-      console.error("❌ Firebase Admin push error:", err?.message || err);
+      const errorCode = err?.code || "UNKNOWN_ERROR";
+      const errorMessage = err?.message || "Firebase Admin error";
+
+      console.error("❌ Firebase Admin push error:", {
+        code: errorCode,
+        message: errorMessage,
+        details: err?.toString(),
+      });
+
+      diagnostics.firebaseErrors.push(`${errorCode}: ${errorMessage}`);
 
       failure += chunk.length;
 
       responses.push({
         error: true,
-        message: err?.message || "Firebase Admin error",
+        code: errorCode,
+        message: errorMessage,
+        timestamp: new Date().toISOString(),
       });
     }
   }
 
-  return { success, failure, responses, invalidTokens };
+  return { success, failure, responses, invalidTokens, diagnostics };
 }

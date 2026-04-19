@@ -3,7 +3,7 @@ import {
   DataTypes,
   Optional
 } from "sequelize";
-import sequelize from "../db/sequelize";
+import sequelize from "../config/db";
 
 interface UserAttributes {
   id: number;

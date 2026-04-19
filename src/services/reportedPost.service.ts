@@ -1,4 +1,10 @@
-// src/services/reportedPost.service.ts
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Reported Post Service. DAO for retrieving posts flagged as inappropriate.
+ * Used By: ReportedPostController
+ * Database Model: Post
+ * Critical: No
+ */
 import { FindOptions } from "sequelize";
 import Post from "../models/Post";
 

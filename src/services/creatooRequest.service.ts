@@ -1,4 +1,10 @@
-// src/services/creatooRequest.service.ts
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Creatoo Request Service. DAO for managing point requests and redemptions.
+ * Used By: CreatooRequestController, PointsService
+ * Database Model: CreatooRequest, User
+ * Critical: Yes (Loyalty/Data)
+ */
 import { FindOptions, Op } from "sequelize";
 import CreatooRequest from "../models/CreatooRequest";
 import User from "../models/User";

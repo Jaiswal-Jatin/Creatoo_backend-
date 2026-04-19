@@ -1,3 +1,10 @@
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Instagram Service. Facilitates OAuth and profile retrieval from the Instagram Graph API.
+ * Used By: AuthController, UserController
+ * Database Model: N/A
+ * Critical: Yes (Auth/Integration)
+ */
 import axios from 'axios';
 import env from '../config/env';
 

@@ -1,0 +1,819 @@
+2026-01-24 13:06:12: ❌ Database connection failed: ConnectionError [SequelizeConnectionError]: getaddrinfo EAI_AGAIN db
+    at ConnectionManager.connect (/server/node_modules/sequelize/lib/dialects/mysql/connection-manager.js:102:17)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async ConnectionManager._connect (/server/node_modules/sequelize/lib/dialects/abstract/connection-manager.js:222:24)
+    at async /server/node_modules/sequelize/lib/dialects/abstract/connection-manager.js:174:32
+    at async ConnectionManager.getConnection (/server/node_modules/sequelize/lib/dialects/abstract/connection-manager.js:197:7)
+    at async /server/node_modules/sequelize/lib/sequelize.js:305:26
+    at async Sequelize.authenticate (/server/node_modules/sequelize/lib/sequelize.js:457:5)
+    at async startDb (/server/dist/app.js:124:9)
+    at async /server/dist/server.js:44:22 {
+  parent: Error: getaddrinfo EAI_AGAIN db
+      at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+    errno: -3001,
+    code: 'EAI_AGAIN',
+    syscall: 'getaddrinfo',
+    hostname: 'db',
+    fatal: true
+  },
+  original: Error: getaddrinfo EAI_AGAIN db
+      at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+    errno: -3001,
+    code: 'EAI_AGAIN',
+    syscall: 'getaddrinfo',
+    hostname: 'db',
+    fatal: true
+  }
+}
+2026-01-24 13:06:12: ❌ Database connection failed: ConnectionError [SequelizeConnectionError]: getaddrinfo EAI_AGAIN db
+    at ConnectionManager.connect (/server/node_modules/sequelize/lib/dialects/mysql/connection-manager.js:102:17)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async ConnectionManager._connect (/server/node_modules/sequelize/lib/dialects/abstract/connection-manager.js:222:24)
+    at async /server/node_modules/sequelize/lib/dialects/abstract/connection-manager.js:174:32
+    at async ConnectionManager.getConnection (/server/node_modules/sequelize/lib/dialects/abstract/connection-manager.js:197:7)
+    at async /server/node_modules/sequelize/lib/sequelize.js:305:26
+    at async Sequelize.authenticate (/server/node_modules/sequelize/lib/sequelize.js:457:5)
+    at async startDb (/server/dist/app.js:124:9)
+    at async /server/dist/server.js:44:22 {
+  parent: Error: getaddrinfo EAI_AGAIN db
+      at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+    errno: -3001,
+    code: 'EAI_AGAIN',
+    syscall: 'getaddrinfo',
+    hostname: 'db',
+    fatal: true
+  },
+  original: Error: getaddrinfo EAI_AGAIN db
+      at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+    errno: -3001,
+    code: 'EAI_AGAIN',
+    syscall: 'getaddrinfo',
+    hostname: 'db',
+    fatal: true
+  }
+}
+2026-01-24 13:06:13: ❌ Database connection failed: ConnectionError [SequelizeConnectionError]: getaddrinfo EAI_AGAIN db
+    at ConnectionManager.connect (/server/node_modules/sequelize/lib/dialects/mysql/connection-manager.js:102:17)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async ConnectionManager._connect (/server/node_modules/sequelize/lib/dialects/abstract/connection-manager.js:222:24)
+    at async /server/node_modules/sequelize/lib/dialects/abstract/connection-manager.js:174:32
+    at async ConnectionManager.getConnection (/server/node_modules/sequelize/lib/dialects/abstract/connection-manager.js:197:7)
+    at async /server/node_modules/sequelize/lib/sequelize.js:305:26
+    at async Sequelize.authenticate (/server/node_modules/sequelize/lib/sequelize.js:457:5)
+    at async startDb (/server/dist/app.js:124:9)
+    at async /server/dist/server.js:44:22 {
+  parent: Error: getaddrinfo EAI_AGAIN db
+      at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+    errno: -3001,
+    code: 'EAI_AGAIN',
+    syscall: 'getaddrinfo',
+    hostname: 'db',
+    fatal: true
+  },
+  original: Error: getaddrinfo EAI_AGAIN db
+      at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+    errno: -3001,
+    code: 'EAI_AGAIN',
+    syscall: 'getaddrinfo',
+    hostname: 'db',
+    fatal: true
+  }
+}
+2026-01-24 13:06:13: ❌ Database connection failed: ConnectionError [SequelizeConnectionError]: getaddrinfo EAI_AGAIN db
+    at ConnectionManager.connect (/server/node_modules/sequelize/lib/dialects/mysql/connection-manager.js:102:17)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async ConnectionManager._connect (/server/node_modules/sequelize/lib/dialects/abstract/connection-manager.js:222:24)
+    at async /server/node_modules/sequelize/lib/dialects/abstract/connection-manager.js:174:32
+    at async ConnectionManager.getConnection (/server/node_modules/sequelize/lib/dialects/abstract/connection-manager.js:197:7)
+    at async /server/node_modules/sequelize/lib/sequelize.js:305:26
+    at async Sequelize.authenticate (/server/node_modules/sequelize/lib/sequelize.js:457:5)
+    at async startDb (/server/dist/app.js:124:9)
+    at async /server/dist/server.js:44:22 {
+  parent: Error: getaddrinfo EAI_AGAIN db
+      at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+    errno: -3001,
+    code: 'EAI_AGAIN',
+    syscall: 'getaddrinfo',
+    hostname: 'db',
+    fatal: true
+  },
+  original: Error: getaddrinfo EAI_AGAIN db
+      at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+    errno: -3001,
+    code: 'EAI_AGAIN',
+    syscall: 'getaddrinfo',
+    hostname: 'db',
+    fatal: true
+  }
+}
+2026-01-24 19:59:11: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2025-12-28T13:45:08.000Z
+}
+2026-01-24 19:59:11: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2025-12-28T13:45:08.000Z
+}
+2026-01-25 12:39:13: Razorpay Error {
+  error: {
+    code: 'BAD_REQUEST_ERROR',
+    description: 'Order amount less than minimum amount allowed',
+    metadata: {},
+    reason: 'NA',
+    source: 'order',
+    step: 'NA'
+  }
+}
+2026-01-25 12:39:13: applyOffers error: ValidationError [SequelizeValidationError]: notNull Violation: TemporaryOrder.order_id cannot be null
+    at InstanceValidator._validate (/server/node_modules/sequelize/lib/instance-validator.js:50:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async InstanceValidator._validateAndRunHooks (/server/node_modules/sequelize/lib/instance-validator.js:60:7)
+    at async InstanceValidator.validate (/server/node_modules/sequelize/lib/instance-validator.js:54:12)
+    at async TemporaryOrder.save (/server/node_modules/sequelize/lib/model.js:2426:7)
+    at async TemporaryOrder.create (/server/node_modules/sequelize/lib/model.js:1362:12)
+    at async WebApiController.applyOffers (/server/dist/controllers/WebApiController.js:344:31) {
+  errors: [
+    ValidationErrorItem {
+      message: 'TemporaryOrder.order_id cannot be null',
+      type: 'notNull Violation',
+      path: 'order_id',
+      value: null,
+      origin: 'CORE',
+      instance: [TemporaryOrder],
+      validatorKey: 'is_null',
+      validatorName: null,
+      validatorArgs: []
+    }
+  ]
+}
+2026-01-25 12:39:17: Razorpay Error {
+  error: {
+    code: 'BAD_REQUEST_ERROR',
+    description: 'Order amount less than minimum amount allowed',
+    metadata: {},
+    reason: 'NA',
+    source: 'order',
+    step: 'NA'
+  }
+}
+2026-01-25 12:39:17: applyOffers error: ValidationError [SequelizeValidationError]: notNull Violation: TemporaryOrder.order_id cannot be null
+    at InstanceValidator._validate (/server/node_modules/sequelize/lib/instance-validator.js:50:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async InstanceValidator._validateAndRunHooks (/server/node_modules/sequelize/lib/instance-validator.js:60:7)
+    at async InstanceValidator.validate (/server/node_modules/sequelize/lib/instance-validator.js:54:12)
+    at async TemporaryOrder.save (/server/node_modules/sequelize/lib/model.js:2426:7)
+    at async TemporaryOrder.create (/server/node_modules/sequelize/lib/model.js:1362:12)
+    at async WebApiController.applyOffers (/server/dist/controllers/WebApiController.js:344:31) {
+  errors: [
+    ValidationErrorItem {
+      message: 'TemporaryOrder.order_id cannot be null',
+      type: 'notNull Violation',
+      path: 'order_id',
+      value: null,
+      origin: 'CORE',
+      instance: [TemporaryOrder],
+      validatorKey: 'is_null',
+      validatorName: null,
+      validatorArgs: []
+    }
+  ]
+}
+2026-01-25 12:40:27: ⚠️ FCM_SERVER_KEY not set — skipping push send. Tokens count: 1
+2026-01-25 13:30:29: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2025-12-29T09:06:53.000Z
+}
+2026-01-25 13:30:30: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2025-12-29T09:06:53.000Z
+}
+2026-01-25 13:30:30: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2025-12-29T09:06:53.000Z
+}
+2026-01-25 13:30:30: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2025-12-29T09:06:53.000Z
+}
+2026-01-25 13:30:32: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2025-12-29T09:06:53.000Z
+}
+2026-01-25 13:30:42: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2025-12-29T09:06:53.000Z
+}
+2026-01-25 14:06:47: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-25T08:23:02.000Z
+}
+2026-01-25 14:06:48: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-25T08:23:02.000Z
+}
+2026-01-25 14:06:49: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-25T08:23:02.000Z
+}
+2026-01-25 14:06:49: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-25T08:23:02.000Z
+}
+2026-01-25 14:06:49: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-25T08:23:02.000Z
+}
+2026-01-25 14:15:53: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-25T08:06:46.000Z
+}
+2026-01-26 09:26:44: authJwt error: JsonWebTokenError: invalid signature
+    at /server/node_modules/jsonwebtoken/verify.js:171:19
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12)
+2026-01-26 09:26:46: authJwt error: JsonWebTokenError: invalid signature
+    at /server/node_modules/jsonwebtoken/verify.js:171:19
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12)
+2026-01-27 15:11:09: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2025-12-27T15:31:33.000Z
+}
+2026-01-27 15:11:10: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2025-12-27T15:31:33.000Z
+}
+2026-01-27 15:11:11: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2025-12-27T15:31:33.000Z
+}
+2026-01-27 20:46:57: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-19T10:38:43.000Z
+}
+2026-01-27 20:46:57: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-19T10:38:43.000Z
+}
+2026-01-30 16:11:42: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-21T10:40:26.000Z
+}
+2026-01-30 16:11:42: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-21T10:40:26.000Z
+}
+2026-01-30 16:11:42: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-21T10:40:26.000Z
+}
+2026-01-30 16:11:42: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-21T10:40:26.000Z
+}
+2026-01-30 16:11:44: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-21T10:40:26.000Z
+}
+2026-01-30 16:11:44: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-21T10:40:26.000Z
+}
+2026-01-30 16:11:44: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-21T10:40:26.000Z
+}
+2026-01-30 16:11:44: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-21T10:40:26.000Z
+}
+2026-01-30 16:11:44: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-21T10:40:26.000Z
+}
+2026-01-30 16:11:44: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-21T10:40:26.000Z
+}
+2026-01-30 16:11:44: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-21T10:40:26.000Z
+}
+2026-01-30 16:11:44: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-21T10:40:26.000Z
+}
+2026-01-30 16:11:45: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-21T10:40:26.000Z
+}
+2026-01-30 16:11:45: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-21T10:40:26.000Z
+}
+2026-01-30 16:11:45: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-21T10:40:26.000Z
+}
+2026-01-30 16:11:45: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-21T10:40:26.000Z
+}
+2026-01-30 16:11:45: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-21T10:40:26.000Z
+}
+2026-01-30 16:11:45: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-21T10:40:26.000Z
+}
+2026-01-30 16:11:45: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-21T10:40:26.000Z
+}
+2026-01-30 16:11:46: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-21T10:40:26.000Z
+}
+2026-01-30 16:11:46: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-21T10:40:26.000Z
+}
+2026-01-30 16:11:46: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-21T10:40:26.000Z
+}
+2026-01-30 16:11:46: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-21T10:40:26.000Z
+}
+2026-01-30 16:11:46: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-21T10:40:26.000Z
+}
+2026-01-30 16:11:47: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-21T10:40:26.000Z
+}
+2026-02-02 09:39:19: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-01-31T14:34:37.000Z
+}
+2026-02-02 11:30:14: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-02-01T07:15:50.000Z
+}
+2026-02-02 11:30:15: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-02-01T07:15:50.000Z
+}
+2026-02-03 12:34:20: authJwt error: TokenExpiredError: jwt expired
+    at /server/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/server/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/server/node_modules/jsonwebtoken/verify.js:101:10)
+    at authJwt (/server/dist/middleware/authJwt.js:18:48)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at next (/server/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/server/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/server/node_modules/express/lib/router/layer.js:95:5)
+    at /server/node_modules/express/lib/router/index.js:284:15
+    at router.process_params (/server/node_modules/express/lib/router/index.js:346:12) {
+  expiredAt: 2026-02-02T13:31:48.000Z
+}

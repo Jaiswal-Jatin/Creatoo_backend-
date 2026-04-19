@@ -20,11 +20,16 @@ export const authJwt = (req: Request, res: Response, next: NextFunction) => {
 
   try {
     const decoded = jwt.verify(token, env.JWT_SECRET) as JwtUser;
-    // console.log('🔐 Decoded JWT user:', decoded); // <— check this in console
     (req as any).user = decoded;
     next();
   } catch (err) {
     console.error('authJwt error:', err);
-    res.status(401).json({ status: false, message: 'Invalid token' });
+    if (err instanceof jwt.TokenExpiredError) {
+      return res.status(401).json({ status: false, message: 'Token expired' });
+    } else if (err instanceof jwt.JsonWebTokenError) {
+      return res.status(401).json({ status: false, message: 'Invalid token signature' });
+    } else {
+      return res.status(401).json({ status: false, message: 'Token verification failed' });
+    }
   }
 };

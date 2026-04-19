@@ -1,3 +1,12 @@
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Exclusive Offer Controller. Manages multi-image offers (Premium/Elite/Core) for businesses.
+ * Used By: Admin Panel, Business Admin App
+ * API Connected: /api/exclusiveOffer/*
+ * Database Model: ExclusiveOffer (via ExclusiveOfferService)
+ * Critical: Yes
+ * Notes: Implements complex disk-to-DB sync for multiple image sections.
+ */
 import { Request, Response } from "express";
 import path from "path";
 import ExclusiveOfferService from "../services/exclusiveOffer.service";

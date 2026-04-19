@@ -1,4 +1,10 @@
-// src/services/PostService.ts
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Post Service. Handles business logic for post creation, status management, and persistence.
+ * Used By: PostController
+ * Database Model: Post
+ * Critical: Yes
+ */
 import { Op } from "sequelize";
 import Post, { Creation } from "../models/Post";
 

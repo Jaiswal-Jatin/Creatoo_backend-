@@ -1,4 +1,11 @@
-// src/controllers/SettingController.ts
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Setting Controller. Manages global platform settings and business-specific loyalty configs.
+ * Used By: Admin Panel, Business Admin App
+ * API Connected: /api/setting/*
+ * Database Model: Setting, User
+ * Critical: Yes (Financial/Calculations)
+ */
 import { Request, Response } from "express";
 import Setting from "../models/Setting";
 import User from "../models/User";

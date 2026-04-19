@@ -1,10 +1,17 @@
-// src/controllers/VersionController.ts
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Version Controller. Handles app version verification to enforce updates.
+ * Used By: User Mobile App, Business Admin App
+ * API Connected: /api/version/*
+ * Database Model: Version
+ * Critical: Yes (Delivery/UX)
+ */
 import { Request, Response } from "express";
 import Version from "../models/Version";
 
 interface AuthUser {
   id: number;
-  is_admin?: boolean;   // must be set by your auth middleware for admins
+  is_admin?: boolean;
 }
 
 interface AuthRequest extends Request {

@@ -1,4 +1,12 @@
-// src/controllers/PostController.ts
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Post Controller. Handles business post creation, management, and push notifications.
+ * Used By: Admin Panel, Business Admin App
+ * API Connected: /api/post/*
+ * Database Model: Post, User, Setting, PostInterest
+ * Critical: Yes
+ * Notes: Includes tax calculation logic and Firebase push notification integration.
+ */
 import { Request, Response } from 'express';
 import { Op, QueryTypes } from 'sequelize';
 import PostService from '../services/post.service';
@@ -6,7 +14,7 @@ import User from '../models/User';
 import Setting from '../models/Setting';
 import Post from '../models/Post';
 import sequelize from '../db/sequelize';
-import { sendPushNotification } from '../services/notification.service';
+import { sendPushNotification } from '../services/sendPushNotification';
 import PostInterest from "../models/PostInterest";
 
 const service = new PostService();

@@ -6,7 +6,8 @@ import User from "../models/User";
 import Post from "../models/Post";
 import PostReport from "../models/PostReport"; // make sure this model exists
 import sequelize from "../db/sequelize";
-import { sendPushNotification } from "../services/notification.service";
+// import { sendPushNotification } from "../services/notification.service"; // OLD: Using legacy FCM HTTP API
+import { sendPushNotification } from "../services/sendPushNotification"; // NEW: Using Firebase Admin SDK
 
 /**
  * GET /api/post/interests/:id

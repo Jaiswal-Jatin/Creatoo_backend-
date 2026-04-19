@@ -1,3 +1,10 @@
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Plan Service. Handles CRUD for subscription plans.
+ * Used By: PlanController, SubscriptionService
+ * Database Model: Plan
+ * Critical: Yes (Service Configuration)
+ */
 import Plan from "../models/Plan";
 
 export default class PlanService {

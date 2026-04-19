@@ -4,7 +4,7 @@ import {
   Model,
   Optional,
 } from "sequelize";
-import sequelize from "../db/sequelize";
+import sequelize from "../config/db";
 
 export interface CreatorPointsTransactionAttrs {
   id: number;

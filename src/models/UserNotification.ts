@@ -4,7 +4,7 @@ import {
   DataTypes,
   Optional
 } from "sequelize";
-import sequelize from '../db/sequelize';
+import sequelize from '../config/db';
 
 export interface UserNotificationAttributes {
   id: number;

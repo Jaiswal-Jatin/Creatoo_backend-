@@ -1,4 +1,12 @@
-// src/controllers/AdminController.ts
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Admin Controller. Handles Admin Authentication and Profile management.
+ * Used By: Admin Role
+ * API Connected: /api/admin/login, /api/admin/change-password, /api/admin/me
+ * Database Model: admins table (via AdminService)
+ * Critical: Yes
+ * Notes: Uses bcrypt for password comparison and issues JWT with 'admin' role.
+ */
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -9,7 +17,14 @@ import { JwtUser } from '../middleware/authJwt';
 const service = new AdminService();
 
 export default {
-  // POST /admin/login
+  /**
+   * Function: login()
+   * Role: Admin
+   * Description: Authenticates Admin using email & password.
+   * Params: email (string), password (string)
+   * Returns: JWT token and Admin details
+   * Used: Yes
+   */
   async login(req: Request, res: Response) {
     try {
       const { email, password } = req.body;
@@ -53,7 +68,14 @@ export default {
     }
   },
 
-  // POST /admin/change-password  (protected)
+  /**
+   * Function: changePassword()
+   * Role: Admin
+   * Description: Updates Admin password after verifying current password.
+   * Params: current_password, new_password, confirm_password
+   * Returns: Success message
+   * Used: Yes
+   */
   async changePassword(req: Request, res: Response) {
     try {
       const user = (req as any).user as JwtUser | undefined;
@@ -106,7 +128,14 @@ export default {
     }
   },
 
-  // GET /admin/me  (protected)
+  /**
+   * Function: me()
+   * Role: Admin
+   * Description: Retrieves current Admin profile.
+   * Params: None (from token)
+   * Returns: Admin details
+   * Used: Yes
+   */
   async me(req: Request, res: Response) {
     const user = (req as any).user as JwtUser | undefined;
     if (!user?.id) {

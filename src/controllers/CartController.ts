@@ -5,7 +5,8 @@ import PostInterest from "../models/PostInterest";
 import Post from "../models/Post";
 import User from "../models/User";
 import sequelize from "../db/sequelize";
-import { sendPushNotification } from "../services/notification.service";
+// import { sendPushNotification } from "../services/notification.service"; // OLD: Using legacy FCM HTTP API
+import { sendPushNotification } from "../services/sendPushNotification"; // NEW: Using Firebase Admin SDK
 
 class CartController {
   // POST /api/cart/addCart  (Laravel: addCart)

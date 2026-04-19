@@ -1,18 +1,13 @@
-import { Sequelize } from 'sequelize';
-import env from './env';
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Legacy Database Configuration (Deprecated - Use database.ts instead)
+ * Used By: Legacy Code Only
+ * API Connected: N/A (Database Layer)
+ * Database Model: All Models
+ * Critical: No (Being replaced by database.ts)
+ * Notes: This file is kept for backward compatibility. Use database.ts for new code.
+ */
+import databaseManager from './database';
 
-const sequelize = new Sequelize(env.DB_NAME, env.DB_USER, env.DB_PASS, {
-  host: env.DB_HOST,
-  port: Number(env.DB_PORT),
-  dialect: 'mysql',
-  logging: false,
-  timezone: '+05:30',
-  dialectOptions: {
-    dateStrings: true,
-    typeCast: true,
-    timezone: '+05:30'
-  },
-  define: { underscored: true, timestamps: true }
-});
-
-export default sequelize;
+// Export the Sequelize instance from the new database manager
+export default databaseManager.getSequelize();

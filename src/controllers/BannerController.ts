@@ -1,3 +1,12 @@
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Banner Controller. Handles CRUD and status management for app banners.
+ * Used By: Admin Panel
+ * API Connected: /api/banner/*
+ * Database Model: Banner (via BannerService)
+ * Critical: Yes
+ * Notes: Includes image compression and dynamic status updates.
+ */
 import { Request, Response } from "express";
 import path from "path";
 import BannerService from "../services/banner.service";

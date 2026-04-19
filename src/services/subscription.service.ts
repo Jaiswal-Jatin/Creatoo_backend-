@@ -1,3 +1,11 @@
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Subscription Service. Manages business plan lifecycles, including queuing and active status chaining.
+ * Used By: SubscriptionController
+ * Database Model: Subscription, Plan, Invoice
+ * Critical: Yes (Revenue/Access Control)
+ * Notes: Implements "addDays" helper and transaction-safe queuing for plan purchases.
+ */
 import Subscription, {
   SubscriptionStatus,
   PaymentMethod,

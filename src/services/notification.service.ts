@@ -1,3 +1,11 @@
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Notification Service (Legacy). Implements legacy FCM HTTP push notifications with token chunking.
+ * Used By: Various controllers (via sendPushNotification)
+ * Database Model: N/A
+ * Critical: Yes (Communication)
+ * Notes: Potential redundancy with sendPushNotification.ts (v1 Admin SDK).
+ */
 import axios from 'axios';
 
 export interface PushMessage {

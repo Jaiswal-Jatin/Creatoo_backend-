@@ -1,0 +1,422 @@
+# Query: 6000
+# ContextLines: 1
+
+156 results - 11 files
+
+.env:
+   1: PORT=6000
+   2  NODE_ENV=development
+
+  24  UPLOAD_DIR=public
+  25: PUBLIC_BASE_URL=http://localhost:6000
+  26  
+
+ecosystem.config.js:
+  18          NODE_ENV: "development",
+  19:         PORT: 6000
+  20        },
+
+  23          NODE_ENV: "production",
+  24:         PORT: 6000
+  25        }
+
+dist\www.js:
+  8  const http_1 = __importDefault(require("http"));
+  9: const PORT = process.env.PORT || 6000;
+  10  const server = http_1.default.createServer(app_1.default);
+
+dist\config\env.js:
+   8  const env = {
+   9:     PORT: Number(process.env.PORT) || 6000,
+  10      NODE_ENV: process.env.NODE_ENV || "development",
+
+  21      UPLOAD_DIR: process.env.UPLOAD_DIR || "public",
+  22:     PUBLIC_BASE_URL: process.env.PUBLIC_BASE_URL || "http://localhost:6000",
+  23:     APP_URL: process.env.APP_URL || "http://localhost:6000",
+  24      MSG91_AUTHKEY: process.env.MSG91_AUTHKEY || "",
+
+dist\controllers\PromotionalNotificationController.js:
+  310                      const now = new Date();
+  311:                     const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  312                      const istOffset = 5.5 * 60 * 60 * 1000; // +5:30
+
+dist\routes\scan.routes.js:
+  16   * 1. User scans QR code with camera or browser
+  17:  * 2. Link format: http://localhost:6000/api/scan?businessId=XXX
+  18   * 3. If app is installed: App opens directly via App Links/Universal Links
+
+logs\out.log:
+     1  2025-11-17 22:30:50: ✅ Database connected & synced
+     2: 2025-11-17 22:30:50: API listening on :6000
+     3  2025-11-17 22:30:51: ✅ Database connected & synced
+     4: 2025-11-17 22:30:51: API listening on :6000
+     5  2025-11-17 22:30:51: ✅ Database connected & synced
+     6: 2025-11-17 22:30:51: API listening on :6000
+     7  2025-11-17 22:30:51: ✅ Database connected & synced
+     8: 2025-11-17 22:30:51: API listening on :6000
+     9  2026-01-24 13:04:28: 
+
+    13    👉 Status:      DEVELOPMENT
+    14:   👉 Local:       http://localhost:6000
+    15:   👉 Network:     http://172.18.0.4:6000
+    16    --------------------------------------------------
+
+    26    👉 Status:      DEVELOPMENT
+    27:   👉 Local:       http://localhost:6000
+    28:   👉 Network:     http://172.18.0.4:6000
+    29    --------------------------------------------------
+
+    39    👉 Status:      DEVELOPMENT
+    40:   👉 Local:       http://localhost:6000
+    41:   👉 Network:     http://172.18.0.4:6000
+    42    --------------------------------------------------
+
+    52    👉 Status:      DEVELOPMENT
+    53:   👉 Local:       http://localhost:6000
+    54:   👉 Network:     http://172.18.0.4:6000
+    55    --------------------------------------------------
+
+    65    👉 Status:      DEVELOPMENT
+    66:   👉 Local:       http://localhost:6000
+    67:   👉 Network:     http://172.18.0.2:6000
+    68    --------------------------------------------------
+
+    78    👉 Status:      DEVELOPMENT
+    79:   👉 Local:       http://localhost:6000
+    80:   👉 Network:     http://172.18.0.2:6000
+    81    --------------------------------------------------
+
+    91    👉 Status:      DEVELOPMENT
+    92:   👉 Local:       http://localhost:6000
+    93:   👉 Network:     http://172.18.0.2:6000
+    94    --------------------------------------------------
+
+   104    👉 Status:      DEVELOPMENT
+   105:   👉 Local:       http://localhost:6000
+   106:   👉 Network:     http://172.18.0.2:6000
+   107    --------------------------------------------------
+
+   117    👉 Status:      DEVELOPMENT
+   118:   👉 Local:       http://localhost:6000
+   119:   👉 Network:     http://172.18.0.3:6000
+   120    --------------------------------------------------
+
+   130    👉 Status:      DEVELOPMENT
+   131:   👉 Local:       http://localhost:6000
+   132:   👉 Network:     http://172.18.0.3:6000
+   133    --------------------------------------------------
+
+   143    👉 Status:      DEVELOPMENT
+   144:   👉 Local:       http://localhost:6000
+   145:   👉 Network:     http://172.18.0.3:6000
+   146    --------------------------------------------------
+
+   156    👉 Status:      DEVELOPMENT
+   157:   👉 Local:       http://localhost:6000
+   158:   👉 Network:     http://172.18.0.3:6000
+   159    --------------------------------------------------
+
+   169    👉 Status:      DEVELOPMENT
+   170:   👉 Local:       http://localhost:6000
+   171:   👉 Network:     http://172.18.0.2:6000
+   172    --------------------------------------------------
+
+   182    👉 Status:      DEVELOPMENT
+   183:   👉 Local:       http://localhost:6000
+   184:   👉 Network:     http://172.18.0.2:6000
+   185    --------------------------------------------------
+
+   195    👉 Status:      DEVELOPMENT
+   196:   👉 Local:       http://localhost:6000
+   197:   👉 Network:     http://172.18.0.2:6000
+   198    --------------------------------------------------
+
+   208    👉 Status:      DEVELOPMENT
+   209:   👉 Local:       http://localhost:6000
+   210:   👉 Network:     http://172.18.0.2:6000
+   211    --------------------------------------------------
+
+   221    👉 Status:      DEVELOPMENT
+   222:   👉 Local:       http://localhost:6000
+   223:   👉 Network:     http://172.18.0.3:6000
+   224    --------------------------------------------------
+
+   234    👉 Status:      DEVELOPMENT
+   235:   👉 Local:       http://localhost:6000
+   236:   👉 Network:     http://172.18.0.3:6000
+   237    --------------------------------------------------
+
+   247    👉 Status:      DEVELOPMENT
+   248:   👉 Local:       http://localhost:6000
+   249:   👉 Network:     http://172.18.0.3:6000
+   250    --------------------------------------------------
+
+   260    👉 Status:      DEVELOPMENT
+   261:   👉 Local:       http://localhost:6000
+   262:   👉 Network:     http://172.18.0.3:6000
+   263    --------------------------------------------------
+
+   273    👉 Status:      DEVELOPMENT
+   274:   👉 Local:       http://localhost:6000
+   275:   👉 Network:     http://172.18.0.3:6000
+   276    --------------------------------------------------
+
+   286    👉 Status:      DEVELOPMENT
+   287:   👉 Local:       http://localhost:6000
+   288:   👉 Network:     http://172.18.0.3:6000
+   289    --------------------------------------------------
+
+   299    👉 Status:      DEVELOPMENT
+   300:   👉 Local:       http://localhost:6000
+   301:   👉 Network:     http://172.18.0.3:6000
+   302    --------------------------------------------------
+
+   312    👉 Status:      DEVELOPMENT
+   313:   👉 Local:       http://localhost:6000
+   314:   👉 Network:     http://172.18.0.3:6000
+   315    --------------------------------------------------
+
+   325    👉 Status:      DEVELOPMENT
+   326:   👉 Local:       http://localhost:6000
+   327:   👉 Network:     http://172.18.0.2:6000
+   328    --------------------------------------------------
+
+   338    👉 Status:      DEVELOPMENT
+   339:   👉 Local:       http://localhost:6000
+   340:   👉 Network:     http://172.18.0.2:6000
+   341    --------------------------------------------------
+
+   351    👉 Status:      DEVELOPMENT
+   352:   👉 Local:       http://localhost:6000
+   353:   👉 Network:     http://172.18.0.2:6000
+   354    --------------------------------------------------
+
+   364    👉 Status:      DEVELOPMENT
+   365:   👉 Local:       http://localhost:6000
+   366:   👉 Network:     http://172.18.0.2:6000
+   367    --------------------------------------------------
+
+   377    👉 Status:      DEVELOPMENT
+   378:   👉 Local:       http://localhost:6000
+   379:   👉 Network:     http://172.18.0.2:6000
+   380    --------------------------------------------------
+
+   390    👉 Status:      DEVELOPMENT
+   391:   👉 Local:       http://localhost:6000
+   392:   👉 Network:     http://172.18.0.2:6000
+   393    --------------------------------------------------
+
+   403    👉 Status:      DEVELOPMENT
+   404:   👉 Local:       http://localhost:6000
+   405:   👉 Network:     http://172.18.0.2:6000
+   406    --------------------------------------------------
+
+   416    👉 Status:      DEVELOPMENT
+   417:   👉 Local:       http://localhost:6000
+   418:   👉 Network:     http://172.18.0.2:6000
+   419    --------------------------------------------------
+
+   429    👉 Status:      DEVELOPMENT
+   430:   👉 Local:       http://localhost:6000
+   431:   👉 Network:     http://172.18.0.2:6000
+   432    --------------------------------------------------
+
+   442    👉 Status:      DEVELOPMENT
+   443:   👉 Local:       http://localhost:6000
+   444:   👉 Network:     http://172.18.0.2:6000
+   445    --------------------------------------------------
+
+   455    👉 Status:      DEVELOPMENT
+   456:   👉 Local:       http://localhost:6000
+   457:   👉 Network:     http://172.18.0.2:6000
+   458    --------------------------------------------------
+
+   468    👉 Status:      DEVELOPMENT
+   469:   👉 Local:       http://localhost:6000
+   470:   👉 Network:     http://172.18.0.2:6000
+   471    --------------------------------------------------
+
+   481    👉 Status:      DEVELOPMENT
+   482:   👉 Local:       http://localhost:6000
+   483:   👉 Network:     http://172.18.0.2:6000
+   484    --------------------------------------------------
+
+   494    👉 Status:      DEVELOPMENT
+   495:   👉 Local:       http://localhost:6000
+   496:   👉 Network:     http://172.18.0.2:6000
+   497    --------------------------------------------------
+
+   507    👉 Status:      DEVELOPMENT
+   508:   👉 Local:       http://localhost:6000
+   509:   👉 Network:     http://172.18.0.2:6000
+   510    --------------------------------------------------
+
+   520    👉 Status:      DEVELOPMENT
+   521:   👉 Local:       http://localhost:6000
+   522:   👉 Network:     http://172.18.0.2:6000
+   523    --------------------------------------------------
+
+   689    👉 Status:      DEVELOPMENT
+   690:   👉 Local:       http://localhost:6000
+   691:   👉 Network:     http://172.18.0.2:6000
+   692    --------------------------------------------------
+
+   702    👉 Status:      DEVELOPMENT
+   703:   👉 Local:       http://localhost:6000
+   704:   👉 Network:     http://172.18.0.2:6000
+   705    --------------------------------------------------
+
+   715    👉 Status:      DEVELOPMENT
+   716:   👉 Local:       http://localhost:6000
+   717:   👉 Network:     http://172.18.0.2:6000
+   718    --------------------------------------------------
+
+   728    👉 Status:      DEVELOPMENT
+   729:   👉 Local:       http://localhost:6000
+   730:   👉 Network:     http://172.18.0.2:6000
+   731    --------------------------------------------------
+
+   766    👉 Status:      DEVELOPMENT
+   767:   👉 Local:       http://localhost:6000
+   768:   👉 Network:     http://172.18.0.2:6000
+   769    --------------------------------------------------
+
+   779    👉 Status:      DEVELOPMENT
+   780:   👉 Local:       http://localhost:6000
+   781:   👉 Network:     http://172.18.0.2:6000
+   782    --------------------------------------------------
+
+   792    👉 Status:      DEVELOPMENT
+   793:   👉 Local:       http://localhost:6000
+   794:   👉 Network:     http://172.18.0.2:6000
+   795    --------------------------------------------------
+
+   805    👉 Status:      DEVELOPMENT
+   806:   👉 Local:       http://localhost:6000
+   807:   👉 Network:     http://172.18.0.2:6000
+   808    --------------------------------------------------
+
+   818    👉 Status:      DEVELOPMENT
+   819:   👉 Local:       http://localhost:6000
+   820:   👉 Network:     http://172.18.0.3:6000
+   821    --------------------------------------------------
+
+   831    👉 Status:      DEVELOPMENT
+   832:   👉 Local:       http://localhost:6000
+   833:   👉 Network:     http://172.18.0.3:6000
+   834    --------------------------------------------------
+
+   844    👉 Status:      DEVELOPMENT
+   845:   👉 Local:       http://localhost:6000
+   846:   👉 Network:     http://172.18.0.3:6000
+   847    --------------------------------------------------
+
+   857    👉 Status:      DEVELOPMENT
+   858:   👉 Local:       http://localhost:6000
+   859:   👉 Network:     http://172.18.0.3:6000
+   860    --------------------------------------------------
+
+   900    👉 Status:      DEVELOPMENT
+   901:   👉 Local:       http://localhost:6000
+   902:   👉 Network:     http://172.18.0.3:6000
+   903    --------------------------------------------------
+
+   913    👉 Status:      DEVELOPMENT
+   914:   👉 Local:       http://localhost:6000
+   915:   👉 Network:     http://172.18.0.3:6000
+   916    --------------------------------------------------
+
+   926    👉 Status:      DEVELOPMENT
+   927:   👉 Local:       http://localhost:6000
+   928:   👉 Network:     http://172.18.0.3:6000
+   929    --------------------------------------------------
+
+   939    👉 Status:      DEVELOPMENT
+   940:   👉 Local:       http://localhost:6000
+   941:   👉 Network:     http://172.18.0.3:6000
+   942    --------------------------------------------------
+
+   959    👉 Status:      DEVELOPMENT
+   960:   👉 Local:       http://localhost:6000
+   961:   👉 Network:     http://172.18.0.3:6000
+   962    --------------------------------------------------
+
+   972    👉 Status:      DEVELOPMENT
+   973:   👉 Local:       http://localhost:6000
+   974:   👉 Network:     http://172.18.0.3:6000
+   975    --------------------------------------------------
+
+   985    👉 Status:      DEVELOPMENT
+   986:   👉 Local:       http://localhost:6000
+   987:   👉 Network:     http://172.18.0.3:6000
+   988    --------------------------------------------------
+
+   998    👉 Status:      DEVELOPMENT
+   999:   👉 Local:       http://localhost:6000
+  1000:   👉 Network:     http://172.18.0.3:6000
+  1001    --------------------------------------------------
+
+  1039    👉 Status:      DEVELOPMENT
+  1040:   👉 Local:       http://localhost:6000
+  1041:   👉 Network:     http://172.18.0.3:6000
+  1042    --------------------------------------------------
+
+  1052    👉 Status:      DEVELOPMENT
+  1053:   👉 Local:       http://localhost:6000
+  1054:   👉 Network:     http://172.18.0.3:6000
+  1055    --------------------------------------------------
+
+  1065    👉 Status:      DEVELOPMENT
+  1066:   👉 Local:       http://localhost:6000
+  1067:   👉 Network:     http://172.18.0.3:6000
+  1068    --------------------------------------------------
+
+  1078    👉 Status:      DEVELOPMENT
+  1079:   👉 Local:       http://localhost:6000
+  1080:   👉 Network:     http://172.18.0.3:6000
+  1081    --------------------------------------------------
+
+  1107    👉 Status:      DEVELOPMENT
+  1108:   👉 Local:       http://localhost:6000
+  1109:   👉 Network:     http://172.18.0.3:6000
+  1110    --------------------------------------------------
+
+  1120    👉 Status:      DEVELOPMENT
+  1121:   👉 Local:       http://localhost:6000
+  1122:   👉 Network:     http://172.18.0.3:6000
+  1123    --------------------------------------------------
+
+  1133    👉 Status:      DEVELOPMENT
+  1134:   👉 Local:       http://localhost:6000
+  1135:   👉 Network:     http://172.18.0.3:6000
+  1136    --------------------------------------------------
+
+  1146    👉 Status:      DEVELOPMENT
+  1147:   👉 Local:       http://localhost:6000
+  1148:   👉 Network:     http://172.18.0.3:6000
+  1149    --------------------------------------------------
+
+src\www.ts:
+  4  
+  5: const PORT = process.env.PORT || 6000;
+  6  
+
+src\config\env.ts:
+  43  const env: EnvConfig = {
+  44:   PORT: Number(process.env.PORT) || 6000,
+  45    NODE_ENV: process.env.NODE_ENV || "development",
+
+  60    UPLOAD_DIR: process.env.UPLOAD_DIR || "public",
+  61:   PUBLIC_BASE_URL: process.env.PUBLIC_BASE_URL || "http://localhost:6000",
+  62:   APP_URL: process.env.APP_URL || "http://localhost:6000",
+  63  
+
+src\controllers\PromotionalNotificationController.ts:
+  367            const now = new Date();
+  368:           const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  369            const istOffset = 5.5 * 60 * 60 * 1000; // +5:30
+
+src\routes\scan.routes.ts:
+  17   * 1. User scans QR code with camera or browser
+  18:  * 2. Link format: http://localhost:6000/api/scan?businessId=XXX
+  19   * 3. If app is installed: App opens directly via App Links/Universal Links

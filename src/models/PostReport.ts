@@ -1,5 +1,5 @@
 import { DataTypes, Model } from "sequelize";
-import sequelize from "../db/sequelize";
+import sequelize from "../config/db";
 import Post from "./Post";
 import User from "./User";
 

@@ -1,3 +1,10 @@
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Banner Service. Handles logic for promotional banners.
+ * Used By: BannerController
+ * Database Model: Banner
+ * Critical: No
+ */
 import Banner from "../models/Banner";
 
 export default class BannerService {

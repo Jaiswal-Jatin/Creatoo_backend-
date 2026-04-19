@@ -1,5 +1,14 @@
+/**
+ * Module: Backend (API Server)
+ * File Purpose: User Model definition. Handles both standard Users and Business Admin Users.
+ * Used By: All Roles (Admin, Business Admin, User)
+ * API Connected: /api/users, /api/business, /api/admin
+ * Database Model: users table
+ * Critical: Yes
+ * Notes: Centralized user model with support for business details, Instagram metrics, and wallet/points system.
+ */
 import { DataTypes, Model, Optional } from "sequelize";
-import sequelize from "../db/sequelize";
+import sequelize from "../config/db";
 
 export interface UserAttrs {
   id: number;
@@ -95,6 +104,7 @@ export interface UserAttrs {
   referrer_code: string | null;
   referrer_mobile_number: string | null;
   platform_fee_percent: number | null;
+  platform_fee_rupees: number | null;
   gateway_charges: number | null;
   reverse_gateway_charges: number | null;
   min_threshold: number | null;
@@ -103,6 +113,11 @@ export interface UserAttrs {
 
 export type UserCreationAttrs = Optional<UserAttrs, "id">;
 
+/**
+ * Class: User
+ * Role: Shared
+ * Description: Sequelize Model for the 'users' table.
+ */
 export class User
   extends Model<UserAttrs, UserCreationAttrs>
   implements UserAttrs
@@ -192,6 +207,7 @@ export class User
   public referrer_code!: string | null;
   public referrer_mobile_number!: string | null;
   public platform_fee_percent!: number | null;
+  public platform_fee_rupees!: number | null;
   public gateway_charges!: number | null;
   public reverse_gateway_charges!: number | null;
   public min_threshold!: number | null;
@@ -305,10 +321,11 @@ User.init(
 
     referrer_code: { type: DataTypes.STRING, allowNull: true },
     referrer_mobile_number: { type: DataTypes.STRING, allowNull: true },
-    platform_fee_percent: { type: DataTypes.FLOAT, allowNull: true },
-    gateway_charges: { type: DataTypes.FLOAT, allowNull: true },
-    reverse_gateway_charges: { type: DataTypes.FLOAT, allowNull: true },
-    min_threshold: { type: DataTypes.FLOAT, allowNull: true },
+    platform_fee_percent: { type: DataTypes.DECIMAL(5, 2), allowNull: true },
+    platform_fee_rupees: { type: DataTypes.DECIMAL(10, 2), allowNull: true },
+    gateway_charges: { type: DataTypes.DECIMAL(10, 2), allowNull: true },
+    reverse_gateway_charges: { type: DataTypes.DECIMAL(10, 2), allowNull: true },
+    min_threshold: { type: DataTypes.DECIMAL(10, 2), allowNull: true },
     device_id: { type: DataTypes.STRING, allowNull: true },
   },
   {

@@ -1,3 +1,11 @@
+/**
+ * Module: Backend (API Server)
+ * File Purpose: User Service. Handles direct DB interactions for User/Business/Creator management.
+ * Used By: UserController, AuthController
+ * API Connected: N/A
+ * Database Model: User
+ * Critical: Yes
+ */
 import { Op } from "sequelize";
 import User, { UserAttrs } from "../models/User";
 
@@ -78,6 +86,7 @@ export class UserService {
 
   async settingsSnapshot() {
     return {
+      // Platform settings - these should be configured in environment or settings table
       platform_fee_percent: 0,
       gateway_charges: 0,
       reverse_gateway_charges: 0,

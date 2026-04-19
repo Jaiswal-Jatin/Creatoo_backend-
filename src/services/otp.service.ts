@@ -1,3 +1,10 @@
+/**
+ * Module: Backend (API Server)
+ * File Purpose: OTP Service. DAO for managing temporary authentication codes in the database.
+ * Used By: AuthController
+ * Database Model: Otp
+ * Critical: Yes (Authentication)
+ */
 import Otp from '../models/Otp';
 
 // Create or update creator OTP (no unique key required)

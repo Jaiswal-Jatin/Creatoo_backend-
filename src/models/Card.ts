@@ -1,6 +1,6 @@
 // src/models/Card.ts
 import { DataTypes, Model, Optional } from "sequelize";
-import sequelize from "../db/sequelize";
+import sequelize from "../config/db";
 
 export interface CardAttributes {
   id: number;

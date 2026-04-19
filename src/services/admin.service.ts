@@ -1,4 +1,12 @@
-// src/services/admin.service.ts
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Admin Service for direct database interactions with 'admins' table.
+ * Used By: AdminController, adminOnly Middleware
+ * API Connected: N/A
+ * Database Model: admins table (Raw SQL)
+ * Critical: Yes
+ * Notes: Uses raw SQL queries instead of Sequelize models for Admin management.
+ */
 import sequelize from '../db/sequelize';
 import { QueryTypes } from 'sequelize';
 
@@ -12,6 +20,12 @@ export interface Admin {
 }
 
 export default class AdminService {
+  /**
+   * Function: findByEmail()
+   * Description: Finds an admin by their email address.
+   * Params: email (string)
+   * Returns: Admin object or null
+   */
   async findByEmail(email: string): Promise<Admin | null> {
     const rows = (await sequelize.query(
       'SELECT * FROM admins WHERE email = ? LIMIT 1',
@@ -24,6 +38,12 @@ export default class AdminService {
     return rows[0] || null;
   }
 
+  /**
+   * Function: findById()
+   * Description: Finds an admin by their numeric ID.
+   * Params: id (number)
+   * Returns: Admin object or null
+   */
   async findById(id: number): Promise<Admin | null> {
     const rows = (await sequelize.query(
       'SELECT * FROM admins WHERE id = ? LIMIT 1',
@@ -36,6 +56,12 @@ export default class AdminService {
     return rows[0] || null;
   }
 
+  /**
+   * Function: updatePassword()
+   * Description: Updates the hashed password for an admin.
+   * Params: id (number), hashedPassword (string)
+   * Returns: void
+   */
   async updatePassword(id: number, hashedPassword: string): Promise<void> {
     await sequelize.query(
       'UPDATE admins SET password = ?, updated_at = NOW() WHERE id = ?',
@@ -46,7 +72,13 @@ export default class AdminService {
     );
   }
 
-  // optional: create admin (for seeding / panel)
+  /**
+   * Function: create()
+   * Description: Creates a new admin record.
+   * Params: name, email, hashedPassword
+   * Returns: The newly created Admin object
+   * Used: For seeding or initial setup
+   */
   async create(name: string, email: string, hashedPassword: string): Promise<Admin> {
     const result = await sequelize.query(
       'INSERT INTO admins (name, email, password, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())',

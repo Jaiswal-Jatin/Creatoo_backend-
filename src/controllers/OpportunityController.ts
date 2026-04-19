@@ -1,4 +1,12 @@
-// src/controllers/OpportunityController.ts
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Opportunity Controller. Handles post discovery and filtering for creators.
+ * Used By: User Mobile App
+ * API Connected: /api/opportunity/*
+ * Database Model: Post, PostInterest, PostReport
+ * Critical: Yes
+ * Notes: Implements complex filtering logic for applied, ongoing, and completed opportunities.
+ */
 import { Request, Response } from "express";
 import { Op, literal } from "sequelize";
 import Post from "../models/Post";

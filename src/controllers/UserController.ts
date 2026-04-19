@@ -1,7 +1,19 @@
 // src/controllers/UserController.ts
+/**
+ * Module: Backend (API Server)
+ * File Purpose: User Controller. Handles Creator and Business management, profile views, and searching.
+ * Used By: Admin Panel, User Mobile App, Business Admin App
+ * API Connected: /api/users/*
+ * Database Model: User, Business, BusinessAssociate, Order
+ * Critical: Yes
+ * Notes: Implements complex business logic for dynamic discounts and review summaries.
+ */
 import { Request, Response } from "express";
 import { Op, QueryTypes } from "sequelize";
 import User from "../models/User";
+import Business from "../models/Business";
+import BusinessAssociate from "../models/BusinessAssociate";
+import Order from "../models/Order";
 import { userService } from "../services/user.service";
 import sequelize from "../db/sequelize";
 
@@ -137,7 +149,8 @@ class UserController {
       }
 
       // Add avg_experience from reviews table (like Laravel DB::table('reviews')...)
-      const usersWithRatings = await Promise.all(
+      // Apply appropriate discount logic for businesses (role_id = 2)
+      const usersWithRatingsAndDiscounts = await Promise.all(
         rows.map(async (user: any) => {
           const [ratingResult]: any = await sequelize.query(
             `
@@ -156,10 +169,28 @@ class UserController {
               ? Number(ratingResult.avg_experience)
               : null;
 
-          return {
+          let userData = {
             ...user.toJSON(),
             avg_experience,
           };
+
+          // Apply discount logic only for businesses (role_id = 2)
+          if (roleIdNum === 2) {
+            // Check if user has visited this business before
+            const userId = req.body.user_id ? Number(req.body.user_id) : null;
+            console.log(`Checking discount for business ${user.id}, user ${userId}`);
+            
+            const hasVisitedBefore = await this.hasUserVisitedBusinessBefore(
+              userId,
+              user.id
+            );
+            
+            console.log(`Has visited before: ${hasVisitedBefore}`);
+            userData = this.applyAppropriateDiscount(userData, hasVisitedBefore);
+            console.log(`Applied discount: ${userData.applicable_discount}, type: ${userData.discount_type}`);
+          }
+
+          return userData;
         })
       );
 
@@ -168,7 +199,7 @@ class UserController {
       return res.status(200).json({
         status: true,
         message: "Search results retrieved successfully",
-        data: usersWithRatings,
+        data: usersWithRatingsAndDiscounts,
         pagination: {
           current_page: page,
           last_page: lastPage,
@@ -494,10 +525,10 @@ class UserController {
 
         const reviewRows: any[] = (await sequelize.query(
           `
-          SELECT review_text
+          SELECT experience, expectation, recommend, fair_money, interaction, review_text
           FROM reviews
           WHERE business_id = :businessId
-            AND review_text IS NOT NULL
+          ORDER BY id DESC
         `,
           {
             replacements: { businessId: userId },
@@ -505,13 +536,72 @@ class UserController {
           }
         )) as any[];
 
-        const review_text = reviewRows.map((r) => r.review_text);
+        const reviews = reviewRows.map((r) => ({
+          experience: r.experience,
+          expectation: r.expectation,
+          recommend: r.recommend,
+          fair_money: r.fair_money,
+          interaction: r.interaction,
+          review_text: r.review_text || ''
+        }));
+
+        // Get business associates using raw query
+        // This includes:
+        // 1. Child associates (where this business is parent)
+        // 2. Parent business (if this business is an associate)
+        // 3. Sibling associates (other associates of the same parent)
+        const associatesRows: any[] = (await sequelize.query(
+          `
+          SELECT DISTINCT
+            u.id,
+            u.business_name,
+            u.business_fullname,
+            u.business_email,
+            u.business_mobile,
+            u.business_image,
+            u.business_area,
+            u.pricing_range_text
+          FROM users u
+          WHERE u.role_id = 2
+            AND u.is_active = true
+            AND (
+              -- Case 1: Child associates (where current business is parent)
+              u.id IN (
+                SELECT ba.associate_business_id
+                FROM business_associates ba
+                WHERE ba.parent_business_id = :businessId
+              )
+              -- Case 2: Parent business (if current business is an associate)
+              OR u.id IN (
+                SELECT ba.parent_business_id
+                FROM business_associates ba
+                WHERE ba.associate_business_id = :businessId
+              )
+              -- Case 3: Sibling associates (other associates with same parent)
+              OR u.id IN (
+                SELECT ba2.associate_business_id
+                FROM business_associates ba2
+                WHERE ba2.parent_business_id IN (
+                  SELECT ba1.parent_business_id
+                  FROM business_associates ba1
+                  WHERE ba1.associate_business_id = :businessId
+                )
+                AND ba2.associate_business_id != :businessId
+              )
+            )
+        `,
+          {
+            replacements: { businessId: userId },
+            type: QueryTypes.SELECT,
+          }
+        )) as any[];
 
         user = {
           ...user,
           average_ratings: averageRatingsData,
           total_reviews: totalReviews,
-          review_text,
+          reviews,
+          associates: associatesRows
         };
       }
 
@@ -788,6 +878,59 @@ class UserController {
         message: "Internal server error",
       });
     }
+  }
+  // ---------------------------------------------------
+  // 🔹 Helpers
+  // ---------------------------------------------------
+
+  /**
+   * Check if user has previous completed orders with a business
+   * @param userId - Current user ID
+   * @param businessId - Business ID to check
+   * @returns true if user has previous paid orders, false otherwise
+   */
+  private async hasUserVisitedBusinessBefore(
+    userId: number | null,
+    businessId: number
+  ): Promise<boolean> {
+    // If no user_id provided, assume first-time visitor
+    if (!userId) {
+      return false;
+    }
+
+    const previousOrder = await Order.findOne({
+      where: {
+        user_id: userId,
+        business_id: businessId,
+        status: {
+          [Op.in]: ['success', 'completed', 'paid', 'captured'] // check for multiple possible success statuses
+        }
+      },
+    });
+    
+    return previousOrder !== null;
+  }
+
+  /**
+   * Apply appropriate discount based on user's visit history
+   * @param business - Business object with discount fields
+   * @param hasVisitedBefore - Whether user has visited before
+   * @returns Business object with appropriate discount applied
+   */
+  private applyAppropriateDiscount(business: any, hasVisitedBefore: boolean): any {
+    const businessData = business.toJSON ? business.toJSON() : { ...business };
+    
+    if (hasVisitedBefore) {
+      // User has visited before - show regular discount
+      businessData.applicable_discount = businessData.set_regular_discount;
+      businessData.discount_type = 'regular';
+    } else {
+      // First time visitor - show first time discount
+      businessData.applicable_discount = businessData.set_first_time_discount;
+      businessData.discount_type = 'first_time';
+    }
+    
+    return businessData;
   }
 }
 

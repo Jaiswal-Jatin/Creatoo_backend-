@@ -1,6 +1,6 @@
 // src/models/Visit.ts
 import { DataTypes, Model, Optional } from "sequelize";
-import sequelize from "../db/sequelize";
+import sequelize from "../config/db";
 
 export type VisitTier = "new" | "core" | "elite" | "premium";
 

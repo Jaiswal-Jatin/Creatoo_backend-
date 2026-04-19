@@ -1,4 +1,11 @@
-// src/controllers/HomeController.ts
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Home Controller. Consolidates data for the mobile app home screen (banners, top picks, discounts).
+ * Used By: User Mobile App, Business Admin App
+ * API Connected: /api/home/*
+ * Database Model: User, Banner, Order, Post, PostInterest, PostReport, CreatorPointsTransaction, TemporaryOrder
+ * Critical: Yes
+ */
 import { Request, Response } from "express";
 import { Op, literal, QueryTypes } from "sequelize";
 import sequelize from "../db/sequelize";
@@ -85,7 +92,7 @@ class HomeController {
       });
 
       // Top business
-      const topBusiness = await User.findAll({
+      const topBusinessRaw = await User.findAll({
         attributes: [
           "id",
           "business_fullname",
@@ -98,6 +105,7 @@ class HomeController {
           "is_active",
           "business_address",
           "set_first_time_discount",
+          "set_regular_discount",
         ],
         where: {
           is_top: 1,
@@ -107,11 +115,22 @@ class HomeController {
         limit: 5,
       });
 
+      // Apply appropriate discount logic for top businesses
+      const topBusiness = await Promise.all(
+        topBusinessRaw.map(async (business) => {
+          const hasVisitedBefore = await this.hasUserVisitedBusinessBefore(
+            userIdNum,
+            business.id
+          );
+          return this.applyAppropriateDiscount(business, hasVisitedBefore);
+        })
+      );
+
       // New creators – you ended up sending [] in Laravel, so we mirror that
       const newCreator: any[] = [];
 
       // New business (excluding current user)
-      const newBusiness = await User.findAll({
+      const newBusinessRaw = await User.findAll({
         attributes: [
           "id",
           "business_fullname",
@@ -123,6 +142,7 @@ class HomeController {
           "is_active",
           "business_area",
           "set_first_time_discount",
+          "set_regular_discount",
         ],
         where: {
           role_id: 2,
@@ -131,6 +151,17 @@ class HomeController {
         order: [["created_at", "DESC"]],
         limit: 5,
       });
+
+      // Apply appropriate discount logic for new businesses
+      const newBusiness = await Promise.all(
+        newBusinessRaw.map(async (business) => {
+          const hasVisitedBefore = await this.hasUserVisitedBusinessBefore(
+            userIdNum,
+            business.id
+          );
+          return this.applyAppropriateDiscount(business, hasVisitedBefore);
+        })
+      );
 
       // last_order_id from users
       const lastOrderId = user.last_order_id ?? null;
@@ -609,6 +640,50 @@ class HomeController {
   // ---------------------------------------------------
   // 🔹 Helpers
   // ---------------------------------------------------
+
+  /**
+   * Check if user has previous completed orders with a business
+   * @param userId - Current user ID
+   * @param businessId - Business ID to check
+   * @returns true if user has previous paid orders, false otherwise
+   */
+  private async hasUserVisitedBusinessBefore(
+    userId: number,
+    businessId: number
+  ): Promise<boolean> {
+    const previousOrder = await Order.findOne({
+      where: {
+        user_id: userId,
+        business_id: businessId,
+        status: 'success', // successful payment indicates user has visited before
+      },
+    });
+    
+    return previousOrder !== null;
+  }
+
+  /**
+   * Apply appropriate discount based on user's visit history
+   * @param business - Business object with discount fields
+   * @param hasVisitedBefore - Whether user has visited before
+   * @returns Business object with appropriate discount applied
+   */
+  private applyAppropriateDiscount(business: any, hasVisitedBefore: boolean): any {
+    const businessData = business.toJSON ? business.toJSON() : { ...business };
+    
+    if (hasVisitedBefore) {
+      // User has visited before - show regular discount
+      businessData.applicable_discount = businessData.set_regular_discount;
+      businessData.discount_type = 'regular';
+    } else {
+      // First time visitor - show first time discount
+      businessData.applicable_discount = businessData.set_first_time_discount;
+      businessData.discount_type = 'first_time';
+    }
+    
+    return businessData;
+  }
+
   private async getTotalCountReview(): Promise<any[]> {
     const topUsers = (await sequelize.query(
       `

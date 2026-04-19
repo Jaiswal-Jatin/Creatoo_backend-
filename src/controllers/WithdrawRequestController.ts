@@ -1,4 +1,12 @@
-// src/controllers/WithdrawRequestController.ts
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Withdraw Request Controller. Manages the lifecycle of creator withdrawal requests.
+ * Used By: Admin Panel, User Mobile App
+ * API Connected: /api/withdrawRequest/*
+ * Database Model: WithdrawRequest, User
+ * Critical: Yes
+ * Notes: Tracks the status (Pending, Completed, Rejected) of cash-out requests.
+ */
 import { Request, Response } from "express";
 import { Op } from "sequelize";
 import WithdrawRequest from "../models/WithdrawRequest";

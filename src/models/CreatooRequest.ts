@@ -1,6 +1,6 @@
 // src/models/CreatooRequest.ts
 import { DataTypes, Model } from "sequelize";
-import sequelize from "../db/sequelize";
+import sequelize from "../config/db";
 import User from "./User";
 
 class CreatooRequest extends Model {

@@ -1,3 +1,10 @@
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Exclusive Offer Service. Manages business-specific tier-based offers.
+ * Used By: ExclusiveOfferController
+ * Database Model: ExclusiveOffer
+ * Critical: Yes (Marketing/Loyalty)
+ */
 import ExclusiveOffer from "../models/ExclusiveOffer";
 
 export default class ExclusiveOfferService {

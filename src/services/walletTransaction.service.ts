@@ -1,4 +1,10 @@
-// src/services/walletTransaction.service.ts
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Wallet Transaction Service. Provides data access for financial ledger entries.
+ * Used By: WalletTransactionController
+ * Database Model: WalletTransaction, User
+ * Critical: Yes (Financial)
+ */
 import WalletTransaction from "../models/WalletTransaction";
 import User from "../models/User";
 import { FindOptions } from "sequelize";

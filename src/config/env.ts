@@ -58,8 +58,8 @@ const env: EnvConfig = {
   INSTAGRAM_REDIRECT_URI: process.env.INSTAGRAM_REDIRECT_URI || "",
 
   UPLOAD_DIR: process.env.UPLOAD_DIR || "public",
-  PUBLIC_BASE_URL: process.env.PUBLIC_BASE_URL || "http://localhost:3000",
-  APP_URL: process.env.APP_URL || "http://localhost:3000",
+  PUBLIC_BASE_URL: process.env.PUBLIC_BASE_URL || "http://dev-api.creatoo.co.in",
+  APP_URL: process.env.APP_URL || "http://dev-api.creatoo.co.in",
 
   MSG91_AUTHKEY: process.env.MSG91_AUTHKEY || "",
   MSG91_TEMPLATE_ID_LOGIN: process.env.MSG91_TEMPLATE_ID_LOGIN || "",

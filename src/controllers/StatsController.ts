@@ -1,4 +1,11 @@
-// src/controllers/StatsController.ts
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Stats Controller. Gathers detailed performance and usage statistics for Admin reports.
+ * Used By: Admin Panel
+ * API Connected: /api/stats/*
+ * Database Model: User, Visit, Card, CreatorPointsTransaction, Order
+ * Critical: No (Analytics only)
+ */
 import { Request, Response } from "express";
 import { Op, fn, col, literal } from "sequelize";
 import User from "../models/User";

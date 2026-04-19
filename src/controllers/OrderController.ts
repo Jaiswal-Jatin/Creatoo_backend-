@@ -1,3 +1,12 @@
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Order Controller. Handles fetching and displaying order transactions.
+ * Used By: Admin Panel
+ * API Connected: /api/orders/*
+ * Database Model: Order, User (Business, Creator, Referrer)
+ * Critical: Yes
+ * Notes: Provides detailed breakdown of bill amounts, fees, and points.
+ */
 import { Request, Response } from "express";
 import { Op } from "sequelize";
 import Order from "../models/Order";

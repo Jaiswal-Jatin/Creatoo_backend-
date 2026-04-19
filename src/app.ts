@@ -1,3 +1,12 @@
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Express Application Configuration. Sets up middleware, routes, and database sync logic.
+ * Used By: Backend System / All Roles via API
+ * API Connected: All API Endpoints defined in routes/
+ * Database Model: Synchronizes all models defined in the system.
+ * Critical: Yes
+ * Notes: Central hub for all route registrations and global middleware.
+ */
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -6,7 +15,8 @@ import fs from "fs";
 import path from "path";
 
 import routes from "./routes"; // base/index routes
-import sequelize from "./db/sequelize";
+import sequelize from "./config/db";
+import databaseInitializer from "./config/db-init";
 import env from "./config/env";
 
 // Feature-specific route modules
@@ -134,15 +144,49 @@ app.use(
 );
 
 // -----------------------------------------------------------------------------
-// 🗄️ Database connection + sync helper
+// 🗄️ Database initialization helper
 // -----------------------------------------------------------------------------
+/**
+ * Function: startDb()
+ * Role: Backend System
+ * Description: Initializes database connection, runs migrations, and seeds data.
+ * Params: None
+ * Returns: Promise<{ status: boolean, message: string, details?: any }>
+ * Used: Yes (in server.ts)
+ */
 export const startDb = async () => {
   try {
-    await sequelize.authenticate();
-    await sequelize.sync();
-    return { status: true, message: "Connected & Synced" };
+    const initResult = await databaseInitializer.initialize();
+    
+    if (initResult.success) {
+      console.log('✅ Database initialization completed successfully');
+      console.log(`📊 Total changes made: ${initResult.totalChanges || 0}`);
+      
+      // Log detailed changes if any were made
+      if (initResult.migrationChanges && initResult.migrationChanges.length > 0) {
+        console.log('🔄 Migration changes:');
+        initResult.migrationChanges.forEach(change => console.log(`   ${change}`));
+      }
+      
+      if (initResult.seedChanges && initResult.seedChanges.length > 0) {
+        console.log('🌱 Seed changes:');
+        initResult.seedChanges.forEach(change => console.log(`   ${change}`));
+      }
+      
+      return { 
+        status: true, 
+        message: initResult.message,
+        details: initResult
+      };
+    } else {
+      console.error('❌ Database initialization failed:', initResult.message);
+      return { 
+        status: false, 
+        message: initResult.message 
+      };
+    }
   } catch (err) {
-    console.error("❌ Database connection failed:", err);
+    console.error("❌ Database initialization error:", err);
     return { status: false, message: String(err) };
   }
 };

@@ -1,9 +1,20 @@
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Business Controller. Handles business-specific operations like customer summaries, discounts, profile management, and associate networks.
+ * Used By: Business Admin Role, Admin Role
+ * API Connected: /api/business/*
+ * Database Model: User, Visit, Card, CreatorPointsTransaction, BusinessAssociate
+ * Critical: Yes
+ * Notes: Implements complex role-based access control (RBAC) where Admins can view/edit any business data.
+ */
 import { Request, Response } from "express";
-import { Op, fn, col } from "sequelize";
+import { Op, fn, col, QueryTypes } from "sequelize";
 import User from "../models/User";
 import Visit from "../models/Visit";
 import Card from "../models/Card";
 import CreatorPointsTransaction from "../models/CreatorPointsTransaction";
+import BusinessAssociate from "../models/BusinessAssociate";
+import sequelize from "../db/sequelize";
 import { deleteIfExists, saveCompressedImage } from "../services/storage.service";
 
 // ✅ Your token has: req.user.role === "admin"
@@ -47,10 +58,82 @@ const getTargetBusinessId = (req: Request): number | null => {
   return tokenBusinessId;
 };
 
+// Helper: Clean null values from plain JSON object
+const cleanNullValues = (obj: any): any => {
+  if (obj === null || obj === undefined) return obj;
+  
+  if (Array.isArray(obj)) {
+    return obj.map(item => cleanNullValues(item)).filter(item => item !== null && item !== undefined);
+  }
+  
+  if (typeof obj === 'object') {
+    const cleaned: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== null && value !== undefined) {
+        cleaned[key] = cleanNullValues(value);
+      }
+    }
+    return cleaned;
+  }
+  
+  return obj;
+};
+
 const BusinessController = {
+  /**
+   * Helper: Get all business IDs in the associate network (parent + associates)
+   */
+  async getAssociateNetwork(businessId: number): Promise<number[]> {
+    const networkIds = [businessId];
+    
+    // Get all associates
+    const associates = await BusinessAssociate.findAll({
+      where: { parent_business_id: businessId },
+      attributes: ['associate_business_id']
+    });
+    
+    // Get all parent businesses
+    const parents = await BusinessAssociate.findAll({
+      where: { associate_business_id: businessId },
+      attributes: ['parent_business_id']
+    });
+    
+    associates.forEach(a => networkIds.push(a.associate_business_id));
+    parents.forEach(p => networkIds.push(p.parent_business_id));
+    
+    return [...new Set(networkIds)]; // Remove duplicates
+  },
+
+  /**
+   * Helper: Get business details for multiple business IDs
+   */
+  async getBusinessDetails(businessIds: number[]): Promise<Map<number, any>> {
+    const businesses = await User.findAll({
+      where: { id: { [Op.in]: businessIds } },
+      attributes: ['id', 'business_name', 'business_fullname']
+    });
+    
+    const businessMap = new Map<number, any>();
+    businesses.forEach((b: any) => {
+      businessMap.set(b.id, {
+        business_name: b.business_name || 'Unknown',
+        business_fullname: b.business_fullname || null
+      });
+    });
+    
+    return businessMap;
+  },
+
   // -----------------------------
   // POST /api/business/customerSummary
   // -----------------------------
+  /**
+   * Function: customerSummary()
+   * Role: Business Admin / Admin
+   * Description: Generates a summary of all customers who have visited the business, including their spending and points.
+   * Params: business_id (optional for business owners, required for admins)
+   * Returns: List of customers with visit and spending details.
+   */
   async customerSummary(req: Request, res: Response) {
     try {
       const businessId = getTargetBusinessId(req);
@@ -160,6 +243,13 @@ const BusinessController = {
   // -----------------------------
   // POST /api/business/setDiscount
   // -----------------------------
+  /**
+   * Function: setDiscount()
+   * Role: Business Admin / Admin
+   * Description: Configures discount percentages and minimum order requirements for a business.
+   * Params: set_first_time_discount, set_regular_discount, min_order, set_expiry, etc.
+   * Returns: Updated business user data.
+   */
   async setDiscount(req: Request, res: Response) {
     try {
       const businessId = getTargetBusinessId(req);
@@ -180,6 +270,9 @@ const BusinessController = {
         set_regular_discount,
         min_order,
         set_expiry,
+        platform_fee_rupees,
+        gateway_charges,
+        reverse_gateway_charges,
       } = req.body;
 
       const errors: Record<string, string[]> = {};
@@ -188,6 +281,9 @@ const BusinessController = {
       const regularNum = Number(set_regular_discount);
       const minOrderNum = Number(min_order);
       const expiryNum = Number(set_expiry);
+      const platformFeeRupeesNum = platform_fee_rupees !== undefined ? Number(platform_fee_rupees) : undefined;
+      const gatewayChargesNum = gateway_charges !== undefined ? Number(gateway_charges) : undefined;
+      const reverseGatewayChargesNum = reverse_gateway_charges !== undefined ? Number(reverse_gateway_charges) : undefined;
 
       if (Number.isNaN(firstNum) || firstNum < 0 || firstNum > 100)
         errors.set_first_time_discount = ["Must be between 0 and 100"];
@@ -200,6 +296,16 @@ const BusinessController = {
 
       if (Number.isNaN(expiryNum) || expiryNum < 1)
         errors.set_expiry = ["Must be at least 1"];
+
+      // Optional fields - only validate if provided
+      if (platformFeeRupeesNum !== undefined && (Number.isNaN(platformFeeRupeesNum) || platformFeeRupeesNum < 0))
+        errors.platform_fee_rupees = ["Must be at least 0"];
+
+      if (gatewayChargesNum !== undefined && (Number.isNaN(gatewayChargesNum) || gatewayChargesNum < 0 || gatewayChargesNum > 100))
+        errors.gateway_charges = ["Must be between 0 and 100"];
+
+      if (reverseGatewayChargesNum !== undefined && (Number.isNaN(reverseGatewayChargesNum) || reverseGatewayChargesNum < 0 || reverseGatewayChargesNum > 100))
+        errors.reverse_gateway_charges = ["Must be between 0 and 100"];
 
       if (Object.keys(errors).length) {
         return res.status(422).json({ status: false, errors });
@@ -218,20 +324,25 @@ const BusinessController = {
       user.set_regular_discount = regularNum;
       user.min_order = minOrderNum;
       user.set_expiry = expiryNum;
+      
+      // Set dynamic charges if provided (only allow admins to modify these)
+      if (platform_fee_rupees !== undefined) user.platform_fee_rupees = platformFeeRupeesNum;
+      if (gateway_charges !== undefined) user.gateway_charges = gatewayChargesNum;
+      if (reverse_gateway_charges !== undefined) user.reverse_gateway_charges = reverseGatewayChargesNum;
 
       await user.save();
       await user.reload();
 
       return res.json({
         status: true,
-        message: "Discount applied successfully",
+        message: "Discount and charges applied successfully",
         data: user,
       });
     } catch (err: any) {
       console.error(err);
       return res.status(500).json({
         status: false,
-        message: "Failed to apply discount: " + (err.message || "Unknown"),
+        message: "Failed to apply discount and charges: " + (err.message || "Unknown"),
       });
     }
   },
@@ -239,6 +350,13 @@ const BusinessController = {
   // -----------------------------
   // POST /api/business/businessDescription
   // -----------------------------
+  /**
+   * Function: businessDescription()
+   * Role: Business Admin / Admin
+   * Description: Updates business profile information including operating hours, pricing range, and images/menu cards.
+   * Params: time_from, time_to, pricing_range_text, business_image, menu_cards, etc.
+   * Returns: Updated business details.
+   */
   async businessDescription(req: Request, res: Response) {
     try {
       const businessId = getTargetBusinessId(req);
@@ -343,6 +461,910 @@ const BusinessController = {
       return res.status(500).json({
         status: false,
         message: "Failed to fetch business list",
+      });
+    }
+  },
+
+  // -----------------------------
+  // POST /api/business/addAssociate
+  // Admin only: Add associate business to parent business
+  // -----------------------------
+  /**
+   * Function: addAssociate()
+   * Role: Admin
+   * Description: Links an associate business to a parent business record.
+   * Params: parent_business_id (number), associate_business_id (number)
+   * Returns: Created association record.
+   */
+  async addAssociate(req: Request, res: Response) {
+    try {
+      if (!isAdminUser(req)) {
+        return res.status(403).json({
+          status: false,
+          message: "Forbidden: Admin access required",
+        });
+      }
+
+      const { parent_business_id, associate_business_id } = req.body;
+
+      if (!parent_business_id || !associate_business_id) {
+        return res.status(400).json({
+          status: false,
+          message: "parent_business_id and associate_business_id are required",
+        });
+      }
+
+      if (parent_business_id === associate_business_id) {
+        return res.status(400).json({
+          status: false,
+          message: "Parent and associate business cannot be the same",
+        });
+      }
+
+      // Check if both businesses exist
+      const parentBusiness = await User.findByPk(parent_business_id);
+      const associateBusiness = await User.findByPk(associate_business_id);
+
+      if (!parentBusiness || !associateBusiness) {
+        return res.status(404).json({
+          status: false,
+          message: "One or both businesses not found",
+        });
+      }
+
+      // Check if association already exists
+      const existingAssociation = await BusinessAssociate.findOne({
+        where: {
+          parent_business_id,
+          associate_business_id,
+        },
+      });
+
+      if (existingAssociation) {
+        return res.status(400).json({
+          status: false,
+          message: "This association already exists",
+        });
+      }
+
+      // Create the association
+      const association = await BusinessAssociate.create({
+        parent_business_id,
+        associate_business_id,
+      });
+
+      return res.json({
+        status: true,
+        message: "Associate added successfully",
+        data: association,
+      });
+    } catch (err: any) {
+      console.error(err);
+      return res.status(500).json({
+        status: false,
+        message: "Failed to add associate: " + (err.message || "Unknown"),
+      });
+    }
+  },
+
+  // -----------------------------
+  // POST /api/business/editAssociateDetails
+  // Admin only: Edit associate business details
+  // -----------------------------
+  async editAssociateDetails(req: Request, res: Response) {
+    try {
+      if (!isAdminUser(req)) {
+        return res.status(403).json({
+          status: false,
+          message: "Forbidden: Admin access required",
+        });
+      }
+
+      const { 
+        associate_business_id,
+        business_name,
+        business_fullname,
+        business_email,
+        business_mobile
+      } = req.body;
+
+      if (!associate_business_id) {
+        return res.status(400).json({
+          status: false,
+          message: "associate_business_id is required",
+        });
+      }
+
+      // Find the associate business
+      const associateBusiness = await User.findByPk(associate_business_id);
+
+      if (!associateBusiness) {
+        return res.status(404).json({
+          status: false,
+          message: "Associate business not found",
+        });
+      }
+
+      // Prepare update data with only provided fields
+      const updateData: any = {};
+      
+      if (business_name !== undefined) updateData.business_name = business_name;
+      if (business_fullname !== undefined) updateData.business_fullname = business_fullname;
+      if (business_email !== undefined) updateData.business_email = business_email;
+      if (business_mobile !== undefined) updateData.business_mobile = business_mobile;
+
+      // Check if at least one field is being updated
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({
+          status: false,
+          message: "At least one field must be provided for update",
+        });
+      }
+
+      // Update the associate business details
+      await associateBusiness.update(updateData);
+
+      return res.json({
+        status: true,
+        message: "Associate details updated successfully",
+        data: {
+          id: associateBusiness.id,
+          business_name: associateBusiness.business_name,
+          business_fullname: associateBusiness.business_fullname,
+          business_email: associateBusiness.business_email,
+          business_mobile: associateBusiness.business_mobile,
+          updatedAt: associateBusiness.updatedAt
+        }
+      });
+    } catch (err: any) {
+      console.error(err);
+      return res.status(500).json({
+        status: false,
+        message: "Failed to edit associate details: " + (err.message || "Unknown"),
+      });
+    }
+  },
+
+  // -----------------------------
+  // POST /api/business/removeAssociate
+  // Admin only: Remove associate business from parent business
+  // -----------------------------
+  async removeAssociate(req: Request, res: Response) {
+    try {
+      if (!isAdminUser(req)) {
+        return res.status(403).json({
+          status: false,
+          message: "Forbidden: Admin access required",
+        });
+      }
+
+      const { parent_business_id, associate_business_id } = req.body;
+
+      if (!parent_business_id || !associate_business_id) {
+        return res.status(400).json({
+          status: false,
+          message: "parent_business_id and associate_business_id are required",
+        });
+      }
+
+      const association = await BusinessAssociate.findOne({
+        where: {
+          parent_business_id,
+          associate_business_id,
+        },
+      });
+
+      if (!association) {
+        return res.status(404).json({
+          status: false,
+          message: "Association not found",
+        });
+      }
+
+      await association.destroy();
+
+      return res.json({
+        status: true,
+        message: "Associate removed successfully",
+      });
+    } catch (err: any) {
+      console.error(err);
+      return res.status(500).json({
+        status: false,
+        message: "Failed to remove associate: " + (err.message || "Unknown"),
+      });
+    }
+  },
+
+  // -----------------------------
+  // POST /api/business/getAssociates
+  // Get associates for a business (using same logic as viewProfile)
+  // Returns: parent_business + all associates (children, parent, and siblings)
+  // Associates can see their parent and siblings; business owners see their children
+  // -----------------------------
+  async getAssociates(req: Request, res: Response) {
+    try {
+      const isAdmin = isAdminUser(req);
+      const authUser = (req as any).user;
+      let businessId: number | null = null;
+
+      if (isAdmin) {
+        // Admin must provide business_id in request body
+        businessId = req.body.business_id ? Number(req.body.business_id) : null;
+        
+        if (!businessId) {
+          return res.status(400).json({
+            status: false,
+            message: "business_id is required for admin users",
+          });
+        }
+      } else {
+        // Non-admin: use token business ID
+        businessId = getTargetBusinessId(req);
+      }
+
+      if (!businessId) {
+        return res.status(403).json({
+          status: false,
+          message: "Forbidden: You cannot access this business_id",
+        });
+      }
+
+      // Get all associates using the same logic as viewProfile
+      // This returns:
+      // 1. Child associates (where current business is parent)
+      // 2. Parent business (if current business is an associate)
+      // 3. Sibling associates (other associates with same parent)
+      const associatesRows: any[] = (await sequelize.query(
+        `
+        SELECT DISTINCT
+          u.id,
+          u.business_name,
+          u.business_fullname,
+          u.business_email,
+          u.business_mobile,
+          u.business_image,
+          u.business_area,
+          u.pricing_range_text
+        FROM users u
+        WHERE u.role_id = 2
+          AND u.is_active = true
+          AND (
+            -- Case 1: Child associates (where current business is parent)
+            u.id IN (
+              SELECT ba.associate_business_id
+              FROM business_associates ba
+              WHERE ba.parent_business_id = :businessId
+            )
+            -- Case 2: Parent business (if current business is an associate)
+            OR u.id IN (
+              SELECT ba.parent_business_id
+              FROM business_associates ba
+              WHERE ba.associate_business_id = :businessId
+            )
+            -- Case 3: Sibling associates (other associates with same parent)
+            OR u.id IN (
+              SELECT ba2.associate_business_id
+              FROM business_associates ba2
+              WHERE ba2.parent_business_id IN (
+                SELECT ba1.parent_business_id
+                FROM business_associates ba1
+                WHERE ba1.associate_business_id = :businessId
+              )
+              AND ba2.associate_business_id != :businessId
+            )
+          )
+      `,
+        {
+          replacements: { businessId: businessId },
+          type: QueryTypes.SELECT,
+        }
+      )) as any[];
+
+      // Get the current business details
+      const parentBusiness = await User.findOne({
+        where: { id: businessId },
+        attributes: ['id', 'business_name', 'business_fullname', 'email', 'mobile', 'business_email', 'business_mobile'],
+      });
+
+      // Prepare response with business and all associates
+      const response = {
+        parent_business: parentBusiness ? cleanNullValues(JSON.parse(JSON.stringify(parentBusiness))) : null,
+        associates: cleanNullValues(associatesRows),
+      };
+
+      return res.json({
+        status: true,
+        data: response,
+      });
+    } catch (err: any) {
+      console.error("getAssociates error:", err);
+      return res.status(500).json({
+        status: false,
+        message: "Failed to get associates: " + (err.message || "Unknown"),
+      });
+    }
+  },
+
+  // -----------------------------
+  // POST /api/business/getParentAssociations
+  // Get parent businesses for a business (admin can access any, business can access own)
+  // For admin: returns all businesses with their associate relationships
+  // -----------------------------
+  async getParentAssociations(req: Request, res: Response) {
+    try {
+      const isAdmin = isAdminUser(req);
+      let businessId: number | null = null;
+
+      if (isAdmin) {
+        // Admin can optionally provide business_id, or get all businesses
+        businessId = req.body.business_id ? Number(req.body.business_id) : null;
+        
+        // If no business_id provided, return all businesses with their associates
+        if (!businessId) {
+          // Get all parent businesses (businesses that have associates)
+          const allParentBusinesses = await BusinessAssociate.findAll({
+            attributes: ['parent_business_id'],
+            group: ['parent_business_id'],
+            raw: true,
+          });
+
+          const parentBusinessIds = allParentBusinesses.map((pb: any) => pb.parent_business_id);
+
+          if (parentBusinessIds.length === 0) {
+            return res.json({
+              status: true,
+              message: "No parent businesses found",
+              data: [],
+            });
+          }
+
+          // Get all parent business details
+          const parentBusinesses = await User.findAll({
+            where: { id: { [Op.in]: parentBusinessIds } },
+            attributes: ['id', 'business_name', 'business_fullname', 'email', 'mobile', 'business_email', 'business_mobile'],
+          });
+
+          // Get all associations for these parent businesses
+          const allAssociations = await BusinessAssociate.findAll({
+            where: { parent_business_id: { [Op.in]: parentBusinessIds } },
+            include: [
+              {
+                model: User,
+                as: 'associateBusiness',
+                attributes: ['id', 'business_name', 'business_fullname', 'email', 'mobile', 'business_email', 'business_mobile'],
+              },
+              {
+                model: User,
+                as: 'parentBusiness',
+                attributes: ['id', 'business_name', 'business_fullname', 'email', 'mobile', 'business_email', 'business_mobile'],
+              },
+            ],
+            order: [['parent_business_id', 'ASC'], ['created_at', 'DESC']],
+          });
+
+          // Group associations by parent business
+          const groupedAssociations = new Map<number, any[]>();
+          allAssociations.forEach(association => {
+            const parentId = association.parent_business_id;
+            if (!groupedAssociations.has(parentId)) {
+              groupedAssociations.set(parentId, []);
+            }
+            groupedAssociations.get(parentId)!.push(association);
+          });
+
+          // Build response with all parent businesses and their associates
+          const result = parentBusinesses.map(parent => ({
+            parent_business_id: parent.id,
+            parent_business_details: parent,
+            associates: groupedAssociations.get(parent.id)?.map(assoc => ({
+              id: assoc.id,
+              parent_business_id: assoc.parent_business_id,
+              associate_business_id: assoc.associate_business_id,
+              created_at: assoc.created_at,
+              updated_at: assoc.updated_at,
+              associate_business: assoc.associateBusiness,
+            })) || [],
+            total_associates: groupedAssociations.get(parent.id)?.length || 0,
+          }));
+
+          // Clean null values from response
+          const cleanedResult = cleanNullValues(JSON.parse(JSON.stringify(result)));
+
+          return res.json({
+            status: true,
+            message: `Found ${parentBusinesses.length} parent businesses with associates`,
+            data: cleanedResult,
+            summary: {
+              total_parent_businesses: parentBusinesses.length,
+              total_associations: allAssociations.length,
+            },
+          });
+        }
+      } else {
+        // Non-admin users can only access their own business
+        businessId = getTargetBusinessId(req);
+      }
+
+      if (!businessId) {
+        return res.status(403).json({
+          status: false,
+          message: "Forbidden: You cannot access this business_id",
+        });
+      }
+
+      // Original logic for specific business access
+      const parentAssociations = await BusinessAssociate.findAll({
+        where: {
+          associate_business_id: businessId,
+        },
+        include: [
+          {
+            model: User,
+            as: 'parentBusiness',
+            attributes: ['id', 'business_name', 'business_fullname', 'email', 'mobile', 'business_email', 'business_mobile'],
+          },
+        ],
+      });
+
+      // Clean null values from response
+      const cleanedParentAssociations = cleanNullValues(JSON.parse(JSON.stringify(parentAssociations)));
+
+      return res.json({
+        status: true,
+        data: cleanedParentAssociations,
+      });
+    } catch (err: any) {
+      console.error(err);
+      return res.status(500).json({
+        status: false,
+        message: "Failed to get parent associations: " + (err.message || "Unknown"),
+      });
+    }
+  },
+
+  // -----------------------------
+  // POST /api/business/getAllBusinesses
+  // Admin only: Get all businesses
+  // -----------------------------
+  async getAllBusinesses(req: Request, res: Response) {
+    try {
+      if (!isAdminUser(req)) {
+        return res.status(403).json({
+          status: false,
+          message: "Forbidden: Admin access required",
+        });
+      }
+
+      const { page = 1, limit = 10, search_key = "" } = req.body;
+      const offset = (Number(page) - 1) * Number(limit);
+
+      const whereClause: any = {
+        role_id: 2,
+        business_name: { [Op.ne]: null }
+      };
+
+      if (search_key && search_key.trim()) {
+        whereClause[Op.or] = [
+          { business_name: { [Op.like]: `%${search_key.trim()}%` } },
+          { business_fullname: { [Op.like]: `%${search_key.trim()}%` } },
+          { email: { [Op.like]: `%${search_key.trim()}%` } },
+          { mobile: { [Op.like]: `%${search_key.trim()}%` } }
+        ];
+      }
+
+      const { count, rows: businesses } = await User.findAndCountAll({
+        where: whereClause,
+        attributes: [
+          'id', 
+          'business_name', 
+          'business_fullname', 
+          'business_email', 
+          'mobile', 
+          'email', 
+          'business_address',
+          'business_area',
+          'gst_number',
+          'created_at',
+          'updated_at'
+        ],
+        limit: Number(limit),
+        offset: offset,
+        order: [['created_at', 'DESC']],
+      });
+
+      return res.json({
+        status: true,
+        data: businesses,
+        pagination: {
+          total: count,
+          page: Number(page),
+          limit: Number(limit),
+          totalPages: Math.ceil(count / Number(limit)),
+        },
+      });
+    } catch (err: any) {
+      console.error(err);
+      return res.status(500).json({
+        status: false,
+        message: "Failed to get businesses: " + (err.message || "Unknown"),
+      });
+    }
+  },
+
+  // -----------------------------
+  // POST /api/business/associateNetworkHistory
+  // Get visit history for entire associate network (main business + all associates)
+  // -----------------------------
+  async associateNetworkHistory(req: Request, res: Response) {
+    try {
+      const businessId = getTargetBusinessId(req);
+
+      if (!businessId) {
+        return res.status(403).json({
+          status: false,
+          message: "Forbidden: You cannot access this business_id",
+        });
+      }
+
+      // Get all business IDs in the associate network
+      const networkIds = await this.getAssociateNetwork(businessId);
+      
+      // Get business details for network
+      const businessDetails = await this.getBusinessDetails(networkIds);
+
+      // Get all visits for the network
+      const visits = await Visit.findAll({
+        where: { business_id: { [Op.in]: networkIds } },
+        order: [["time", "DESC"]],
+      });
+
+      if (visits.length === 0) {
+        return res.status(200).json({
+          status: true,
+          summary: { premium: 0, elite: 0, core: 0, new: 0 },
+          days: [],
+        });
+      }
+
+      const cardNumbers = Array.from(new Set(visits.map((v) => v.card_number)));
+      const cards = await Card.findAll({
+        where: { number: { [Op.in]: cardNumbers } },
+        attributes: ["number", "name"],
+      });
+
+      const cardNameMap = new Map<number, string | null>();
+      cards.forEach((c: any) => {
+        cardNameMap.set(c.number, c.name ?? null);
+      });
+
+      const summary: Record<string, number> = {
+        premium: 0,
+        elite: 0,
+        core: 0,
+        new: 0,
+      };
+
+      type DayVisit = {
+        card_number: number;
+        name: string | null;
+        tier: string;
+        time: string;
+        business_name: string;
+        business_id: number;
+      };
+
+      type DayGroup = {
+        date: string;
+        visits: DayVisit[];
+      };
+
+      const daysMap = new Map<string, DayGroup>();
+
+      for (const v of visits) {
+        summary[v.tier] = (summary[v.tier] || 0) + 1;
+
+        // Use IST date
+        const dateKey = new Date(v.time).toLocaleDateString("en-CA", {
+          timeZone: "Asia/Kolkata",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        });
+
+        if (!daysMap.has(dateKey)) {
+          daysMap.set(dateKey, { date: dateKey, visits: [] });
+        }
+
+        const businessInfo = businessDetails.get(v.business_id);
+        
+        const group = daysMap.get(dateKey)!;
+        group.visits.push({
+          card_number: v.card_number,
+          name: cardNameMap.get(v.card_number) ?? null,
+          tier: v.tier,
+          time: new Date(v.time).toLocaleString("en-CA", {
+            timeZone: "Asia/Kolkata",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: false,
+          }).replace(",", ""),
+          business_name: businessInfo?.business_name || 'Unknown',
+          business_id: v.business_id,
+        });
+      }
+
+      const days = Array.from(daysMap.values()).sort((a, b) =>
+        a.date < b.date ? 1 : -1
+      );
+
+      return res.status(200).json({
+        status: true,
+        summary,
+        days,
+        network_businesses: Array.from(businessDetails.entries()).map(([id, details]) => ({
+          business_id: id,
+          ...details
+        }))
+      });
+    } catch (err: any) {
+      console.error("associateNetworkHistory error:", err);
+      return res.status(500).json({
+        status: false,
+        message: "Server error: " + err.message,
+      });
+    }
+  },
+
+  // -----------------------------
+  // POST /api/business/getAssociateSummary
+  // Get comprehensive summary of all associates for main business
+  // -----------------------------
+  async getAssociateSummary(req: Request, res: Response) {
+    try {
+      const businessId = getTargetBusinessId(req);
+
+      if (!businessId) {
+        return res.status(403).json({
+          status: false,
+          message: "Forbidden: You cannot access this business_id",
+        });
+      }
+
+      // Get all associates
+      const associates = await BusinessAssociate.findAll({
+        where: {
+          parent_business_id: businessId,
+        },
+        include: [
+          {
+            model: User,
+            as: 'associateBusiness',
+            attributes: [
+              'id', 
+              'business_name', 
+              'business_fullname', 
+              'email', 
+              'mobile', 
+              'business_email', 
+              'business_mobile',
+              'business_address',
+              'business_area',
+              'created_at'
+            ],
+          },
+        ],
+        order: [['created_at', 'DESC']],
+      });
+
+      // Get visit statistics for each associate
+      const associateIds = associates.map(a => a.associate_business_id);
+      
+      const visitStats = await Visit.findAll({
+        where: { business_id: { [Op.in]: associateIds } },
+        attributes: [
+          'business_id',
+          [fn('COUNT', col('id')), 'total_visits'],
+          [fn('COUNT', fn('DISTINCT', col('card_number'))), 'unique_customers']
+        ],
+        group: ['business_id'],
+        raw: true,
+      });
+
+      const visitStatsMap = new Map<number, any>();
+      visitStats.forEach((stat: any) => {
+        visitStatsMap.set(Number(stat.business_id), {
+          total_visits: Number(stat.total_visits),
+          unique_customers: Number(stat.unique_customers)
+        });
+      });
+
+      // Enhanced associate data
+      const associateSummary = associates.map(associate => {
+        const stats = visitStatsMap.get(associate.associate_business_id) || {
+          total_visits: 0,
+          unique_customers: 0
+        };
+
+        const associateBusiness = (associate as any).associateBusiness;
+
+        return {
+          association_id: associate.id,
+          parent_business_id: associate.parent_business_id,
+          associate_business_id: associate.associate_business_id,
+          association_created_at: associate.created_at,
+          associate_business_updated_at: associate.updated_at,
+          
+          // Business details
+          business_details: associateBusiness,
+          
+          // Performance metrics
+          performance: {
+            total_visits: stats.total_visits,
+            unique_customers: stats.unique_customers,
+            avg_visits_per_customer: stats.unique_customers > 0 
+              ? (stats.total_visits / stats.unique_customers).toFixed(2)
+              : '0.00'
+          },
+          
+          // Contact availability
+          contact_info: {
+            has_email: !!(associateBusiness.email || associateBusiness.business_email),
+            has_mobile: !!(associateBusiness.mobile || associateBusiness.business_mobile),
+            has_address: !!associateBusiness.business_address,
+            has_area: !!associateBusiness.business_area
+          }
+        };
+      });
+
+      // Overall summary
+      const totalAssociates = associates.length;
+      const totalVisits = Array.from(visitStatsMap.values()).reduce((sum, stat) => sum + stat.total_visits, 0);
+      const totalUniqueCustomers = Array.from(visitStatsMap.values()).reduce((sum, stat) => sum + stat.unique_customers, 0);
+
+      return res.json({
+        status: true,
+        summary: {
+          total_associates: totalAssociates,
+          total_network_visits: totalVisits,
+          total_network_customers: totalUniqueCustomers,
+          avg_visits_per_associate: totalAssociates > 0 ? (totalVisits / totalAssociates).toFixed(2) : '0.00'
+        },
+        associates: associateSummary
+      });
+    } catch (err: any) {
+      console.error("getAssociateSummary error:", err);
+      return res.status(500).json({
+        status: false,
+        message: "Failed to get associate summary: " + (err.message || "Unknown"),
+      });
+    }
+  },
+
+  // -----------------------------
+  // POST /api/business/associateOnlyHistory
+  // Get visit history for associate business only (restricted access)
+  // -----------------------------
+  async associateOnlyHistory(req: Request, res: Response) {
+    try {
+      const businessId = getTargetBusinessId(req);
+
+      if (!businessId) {
+        return res.status(403).json({
+          status: false,
+          message: "Forbidden: You cannot access this business_id",
+        });
+      }
+
+      // Check if this business is an associate (has parent)
+      const parentAssociation = await BusinessAssociate.findOne({
+        where: { associate_business_id: businessId },
+      });
+
+      if (!parentAssociation) {
+        return res.status(403).json({
+          status: false,
+          message: "Access denied: This endpoint is for associate businesses only",
+        });
+      }
+
+      // Get visits only for this associate business
+      const visits = await Visit.findAll({
+        where: { business_id: businessId },
+        order: [["time", "DESC"]],
+      });
+
+      if (visits.length === 0) {
+        return res.status(200).json({
+          status: true,
+          summary: { premium: 0, elite: 0, core: 0, new: 0 },
+          days: [],
+        });
+      }
+
+      const cardNumbers = Array.from(new Set(visits.map((v) => v.card_number)));
+      const cards = await Card.findAll({
+        where: { number: { [Op.in]: cardNumbers } },
+        attributes: ["number", "name"],
+      });
+
+      const cardNameMap = new Map<number, string | null>();
+      cards.forEach((c: any) => {
+        cardNameMap.set(c.number, c.name ?? null);
+      });
+
+      const summary: Record<string, number> = {
+        premium: 0,
+        elite: 0,
+        core: 0,
+        new: 0,
+      };
+
+      type DayVisit = {
+        card_number: number;
+        name: string | null;
+        tier: string;
+        time: string;
+      };
+
+      type DayGroup = {
+        date: string;
+        visits: DayVisit[];
+      };
+
+      const daysMap = new Map<string, DayGroup>();
+
+      for (const v of visits) {
+        summary[v.tier] = (summary[v.tier] || 0) + 1;
+
+        // Use IST date
+        const dateKey = new Date(v.time).toLocaleDateString("en-CA", {
+          timeZone: "Asia/Kolkata",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        });
+
+        if (!daysMap.has(dateKey)) {
+          daysMap.set(dateKey, { date: dateKey, visits: [] });
+        }
+
+        const group = daysMap.get(dateKey)!;
+        group.visits.push({
+          card_number: v.card_number,
+          name: cardNameMap.get(v.card_number) ?? null,
+          tier: v.tier,
+          time: new Date(v.time).toLocaleString("en-CA", {
+            timeZone: "Asia/Kolkata",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: false,
+          }).replace(",", ""),
+        });
+      }
+
+      const days = Array.from(daysMap.values()).sort((a, b) =>
+        a.date < b.date ? 1 : -1
+      );
+
+      return res.status(200).json({
+        status: true,
+        summary,
+        days,
+      });
+    } catch (err: any) {
+      console.error("associateOnlyHistory error:", err);
+      return res.status(500).json({
+        status: false,
+        message: "Server error: " + err.message,
       });
     }
   },

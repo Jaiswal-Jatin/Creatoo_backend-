@@ -1,4 +1,11 @@
-// src/controllers/DashboardController.ts
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Dashboard Controller. Provides high-level counts for the Admin Panel dashboard.
+ * Used By: Admin Panel
+ * API Connected: /api/dashboard/data-counts
+ * Database Model: User, Post, PostReport, Order, WalletTransaction
+ * Critical: No (Analytics only)
+ */
 import { Request, Response } from "express";
 import { Op, fn, col, where, literal } from "sequelize";
 import User from "../models/User";

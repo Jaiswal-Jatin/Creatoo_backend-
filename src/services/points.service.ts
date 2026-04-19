@@ -1,4 +1,11 @@
-// src/services/points.service.ts
+/**
+ * Module: Backend (API Server)
+ * File Purpose: Points Service. Manages the loyalty points lifecycle, including validation, expiry, and redemptions.
+ * Used By: PointsController, HomeController, StatsController
+ * Database Model: User, CreatorPointsTransaction, CreatooRequest
+ * Critical: Yes (Financial/Loyalty)
+ * Notes: Implements complex point expiry logic and atomic point transfers.
+ */
 import { Op, Transaction } from "sequelize";
 import sequelize from "../db/sequelize";
 import User from "../models/User";
