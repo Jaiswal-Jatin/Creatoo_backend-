@@ -2,6 +2,7 @@
 import { DataTypes, Model } from "sequelize";
 import sequelize from "../config/db";
 import User from "./User";
+import Business from "./Business";
 
 class CreatooRequest extends Model {
   public id!: number;
@@ -76,7 +77,7 @@ CreatooRequest.belongsTo(User, {
   as: "creator",
 });
 
-CreatooRequest.belongsTo(User, {
+CreatooRequest.belongsTo(Business, {
   foreignKey: "business_id",
   as: "business",
 });

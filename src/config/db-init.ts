@@ -57,6 +57,25 @@ class DatabaseInitializer {
         };
       }
 
+      // Step 2.5: Fix column lengths if necessary (prevent VARCHAR 255 length exceptions)
+      console.log('🔧 Step 2.5: Adjusting category_attributes column type if necessary...');
+      try {
+        await databaseManager.getSequelize().query(
+          'ALTER TABLE businesses MODIFY COLUMN category_attributes JSON NULL'
+        );
+        console.log('✅ category_attributes column verified/modified to JSON successfully.');
+      } catch (colError) {
+        console.warn('⚠️  Failed to alter category_attributes to JSON, attempting TEXT fallback:', colError);
+        try {
+          await databaseManager.getSequelize().query(
+            'ALTER TABLE businesses MODIFY COLUMN category_attributes TEXT NULL'
+          );
+          console.log('✅ category_attributes column verified/modified to TEXT fallback successfully.');
+        } catch (textColError) {
+          console.error('❌ Failed to modify category_attributes column:', textColError);
+        }
+      }
+
       // Step 3: Validate migration was successful
       if (migrationResult.changes.length === 0) {
         console.log('✅ No schema changes needed - database is up to date');

@@ -53,8 +53,13 @@ function calculateTier(lastVisit: any): VisitTier {
   if (!lastVisit) return "new";
 
   const now = Date.now();
-  const last = lastVisit.time.getTime();
-  const diffDays = Math.floor((now - last) / (1000 * 60 * 60 * 24));
+  const timeValue = lastVisit.time;
+  const timeMs = typeof timeValue === "string"
+    ? new Date(timeValue).getTime()
+    : typeof timeValue === "number"
+      ? timeValue
+      : timeValue.getTime();
+  const diffDays = Math.floor((now - timeMs) / (1000 * 60 * 60 * 24));
 
   if (diffDays <= 7) return "premium";
   if (diffDays <= 15) return "elite";

@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import jwt, { Secret, SignOptions } from "jsonwebtoken";
 import env from "../config/env";
 import User from "../models/User";
+import Business from "../models/Business";
 import {
   findBusinessByMobile,
   findCreatorByMobile,
@@ -18,6 +19,8 @@ import {
 import { sendOtp } from "../services/sms.service";
 import { saveCompressedImage, deleteIfExists } from "../services/storage.service";
 import { Op } from "sequelize";
+import { validateCategoryAttributes } from "../utils/categoryValidator";
+import Card from "../models/Card";
 
 const ADMIN_BYPASS_OTP = "121512";
 const BUSINESS_ROLE_ID = 2; // same as you used in businessRegister
@@ -25,12 +28,12 @@ const BUSINESS_ROLE_ID = 2; // same as you used in businessRegister
 /**
  * Issue JWT for an authenticated user.
  */
-const issueToken = (user: User): string => {
+const issueToken = (user: any): string => {
   const secret: Secret = env.JWT_SECRET;
   const options: SignOptions = {
     expiresIn: env.JWT_EXPIRES_IN as unknown as SignOptions["expiresIn"],
   };
-  return jwt.sign({ id: user.id }, secret, options);
+  return jwt.sign({ id: user.id, role_id: user.role_id }, secret, options);
 };
 
 const AuthController = {
@@ -124,6 +127,31 @@ const AuthController = {
         user_image: imageUrl, // URL
         role_id: 3,
       } as any);
+
+      // Auto-assign a 4-digit card to the user on registration
+      try {
+        const existingUserCard = await Card.findOne({ where: { user_id: user.id } });
+        if (!existingUserCard) {
+          let uniqueNumber: number = 0;
+          let isUnique = false;
+          while (!isUnique) {
+            uniqueNumber = Math.floor(1000 + Math.random() * 9000);
+            const existingCard = await Card.findOne({ where: { number: uniqueNumber } });
+            if (!existingCard) {
+              isUnique = true;
+            }
+          }
+          await Card.create({
+            number: uniqueNumber,
+            status: 1,
+            user_id: user.id,
+            name: name || "User",
+            business_id: 0,
+          });
+        }
+      } catch (cardErr) {
+        console.error("Auto card assignment error (non-blocking):", cardErr);
+      }
 
       const token = issueToken(user);
       return res.json({
@@ -317,7 +345,7 @@ const AuthController = {
 
       // --- CHECK EMAIL ALREADY EXISTS ---
       if (business_email) {
-        const existingEmail = await User.findOne({
+        const existingEmail = await Business.findOne({
           where: { business_email },
         });
         if (existingEmail) {
@@ -334,6 +362,20 @@ const AuthController = {
       // --- LOAD SETTINGS ---
       const settings = await settingsSnapshot();
 
+      // --- VALIDATE CATEGORY ATTRIBUTES ---
+      const category = cleanBody.business_category || 'restaurant';
+      let categoryAttributes = null;
+      if (cleanBody.category_attributes) {
+        const validation = validateCategoryAttributes(category, cleanBody.category_attributes);
+        if (!validation.status) {
+          return res.status(422).json({
+            status: false,
+            message: validation.message,
+          });
+        }
+        categoryAttributes = validation.cleanData;
+      }
+
       // --- UPSERT BUSINESS ---
       const user = await upsertBusiness({
         business_mobile: mobile,
@@ -346,8 +388,13 @@ const AuthController = {
         business_site_url: cleanBody.business_site_url || null,
         gst_number: cleanBody.gst_number || null,
         business_type_id: cleanBody.business_type_id || null,
+        business_category: category,
+        category_attributes: categoryAttributes,
+        upi_id: cleanBody.upi_id || null,
         business_image: fileUrl,
         role_id: 2,
+        time_from: null,
+        time_to: null,
         ...settings,
       });
 
@@ -369,8 +416,11 @@ const AuthController = {
           business_designation: user.business_designation,
           business_site_url: user.business_site_url,
           business_type_id: user.business_type_id,
+          business_category: user.business_category,
+          category_attributes: user.category_attributes,
           business_image: user.business_image,
           gst_number: user.gst_number,
+          upi_id: user.upi_id,
           platform_fee_percent: user.platform_fee_percent,
           gateway_charges: user.gateway_charges,
           reverse_gateway_charges: user.reverse_gateway_charges,
@@ -411,7 +461,7 @@ const AuthController = {
       if (!valid) return res.json({ status: false, message: "Invalid OTP" });
 
       if (device_id) {
-        await User.update(
+        await Business.update(
           { remember_token: null },
           { where: { device_id, id: { [Op.ne]: user.id } } }
         );
@@ -526,7 +576,7 @@ const AuthController = {
       }
 
       const userId = Number(id);
-      const user: any = await User.findByPk(userId);
+      const user: any = await Business.findByPk(userId);
 
       if (!user) {
         return res.status(404).json({
@@ -568,13 +618,38 @@ const AuthController = {
       if ("business_designation" in body)
         updateData.business_designation = body.business_designation;
       if ("gst_number" in body) updateData.gst_number = body.gst_number;
+      // --- VALIDATE CATEGORY ATTRIBUTES ---
+      const targetCategory = "business_category" in body ? body.business_category : user.business_category;
+
+      if ("category_attributes" in body) {
+        const validation = validateCategoryAttributes(targetCategory, body.category_attributes);
+        if (!validation.status) {
+          return res.status(422).json({
+            status: false,
+            message: validation.message,
+          });
+        }
+        updateData.category_attributes = validation.cleanData;
+      }
+
+      if ("business_category" in body) {
+        if (body.business_category !== user.business_category) {
+          updateData.business_category = body.business_category;
+          // Clear legacy attributes on category type switch if not explicitly updated
+          if (!("category_attributes" in body)) {
+            updateData.category_attributes = null;
+          }
+        }
+      }
+      if ("upi_id" in body)
+        updateData.upi_id = body.upi_id || null;
 
       // --- EMAIL UPDATE WITH UNIQUENESS CHECK ---
       if ("business_email" in body) {
         const newEmail = body.business_email || null;
 
         if (newEmail && newEmail !== user.business_email) {
-          const existingEmail = await User.findOne({
+          const existingEmail = await Business.findOne({
             where: { business_email: newEmail },
           });
 
@@ -605,7 +680,7 @@ const AuthController = {
       // --- APPLY UPDATES ---
       await user.update(updateData);
 
-      const profile = await User.findOne({
+      const profile = await Business.findOne({
         where: { id: userId },
         attributes: [
           "id",
@@ -618,7 +693,10 @@ const AuthController = {
           "business_site_url",
           "business_designation",
           "gst_number",
+          "business_category",
+          "category_attributes",
           "business_image",
+          "upi_id",
           "role_id",
           "is_active",
         ],
@@ -720,7 +798,7 @@ const AuthController = {
         if (val === "false" || val === "0") where.is_active = false;
       }
 
-      const users = await User.findAll({
+      const users = await Business.findAll({
         where,
         attributes: [
           "id",
@@ -774,8 +852,8 @@ const AuthController = {
 
       const userId = Number(id);
 
-      const user = await User.findOne({
-        where: { id: userId, role_id: BUSINESS_ROLE_ID },
+      const user = await Business.findOne({
+        where: { id: userId },
       });
 
       if (!user) {
@@ -846,7 +924,7 @@ const AuthController = {
 
       // EMAIL UNIQUE CHECK
       if (business_email) {
-        const existingEmail = await User.findOne({
+        const existingEmail = await Business.findOne({
           where: { business_email },
         });
         if (existingEmail) {
@@ -878,6 +956,8 @@ const AuthController = {
         business_site_url: cleanBody.business_site_url || null,
         gst_number: cleanBody.gst_number || null,
         business_type_id: cleanBody.business_type_id || null,
+        business_category: cleanBody.business_category || null,
+        category_attributes: cleanBody.category_attributes || null,
         business_image: imageUrl,
         role_id: BUSINESS_ROLE_ID,
         is_active:

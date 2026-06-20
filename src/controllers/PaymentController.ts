@@ -7,20 +7,20 @@ import { Op } from "sequelize";
 
 
 import User from "../models/User";
-
 import Post from "../models/Post";
-
 import PostInterest from "../models/PostInterest";
-
 import Payment from "../models/Payment";
-
 import UserNotification from "../models/UserNotification";
-
 import TemporaryOrder from "../models/TemporaryOrder";
-
-import Order from "../models/Order"; // ✅ orders table
-
-import WalletTransaction from "../models/WalletTransaction"; // ✅ wallet transactions table
+import Order from "../models/Order";
+import WalletTransaction from "../models/WalletTransaction";
+import pointsService from "../services/points.service";
+import { sendPushNotification } from "../services/sendPushNotification";
+import NewUserNotification from "../models/NewUserNotification";
+import Business from "../models/Business";
+import BusinessAssociate from "../models/BusinessAssociate";
+import Card from "../models/Card";
+import Visit from "../models/Visit";
 
 
 
@@ -1283,14 +1283,57 @@ class PaymentController {
     // 4) Update user's last_order_id (used in fetchPaymentStatus)
 
     if (user) {
-
       (user as any).last_order_id = orderId;
-
       await (user as any).save();
-
     }
 
+    // Deduct loyalty points if used during checkout
+    const loyaltyPointsUsed = Number((tempOrder as any).loyalty_points_used_discount_amount) || 0;
+    if (loyaltyPointsUsed > 0) {
+      try {
+        console.log(`🪙 Deducting ${loyaltyPointsUsed} points for User ${userId} at Business ${businessId}...`);
+        await pointsService.deductPoints(userId, businessId, loyaltyPointsUsed, orderId);
 
+        // Send Redemption Push Notification to Creator
+        const message = `🛍️ You redeemed ${loyaltyPointsUsed} loyalty points at ${businessName}`;
+        if (user?.remember_token) {
+          await sendPushNotification({
+            title: "Points Redeemed",
+            description: message
+          }, [user.remember_token]);
+        }
+
+        // Log Notification inside database for Creator
+        await NewUserNotification.create({
+          user_id: userId,
+          notification_subject: "Points Redeemed",
+          notification_text: message,
+          business_id: businessId,
+          is_redeemed: "CreatorView"
+        } as any);
+
+        // Send Redemption Push Notification to Business
+        const businessMessage = `🛍️ ${receiptName} redeemed ${loyaltyPointsUsed} loyalty points at your business.`;
+        const businessRecord = await Business.findByPk(businessId);
+        if (businessRecord?.remember_token) {
+          await sendPushNotification({
+            title: "Points Redeemed by Customer",
+            description: businessMessage
+          }, [businessRecord.remember_token]);
+        }
+
+        // Log Notification inside database for Business
+        await NewUserNotification.create({
+          user_id: businessId,
+          notification_subject: "Points Redeemed by Customer",
+          notification_text: businessMessage,
+          business_id: businessId,
+          is_redeemed: "BusinessView"
+        } as any);
+      } catch (deductErr) {
+        console.error("❌ Error during points deduction / notification:", deductErr);
+      }
+    }
 
     // 5) CREATE WALLET TRANSACTION FOR BUSINESS OWNER
     // Automatically store order payment in wallet_transactions table for business owner
@@ -1321,11 +1364,14 @@ class PaymentController {
       if (!existingWalletTransaction) {
         await WalletTransaction.create({
           user_id: businessId,
+          from_user_id: userId,
           amount: finalSettlementAmount,
           credit_debit: "credit",
           remark: `Payment received for Order ${orderId}`,
           is_withdraw_request: "0",
           via: "order_payment",
+          source_type: "order_payment",
+          settlement_status: "pending",
           created_at: createdAtRaw,
           updated_at: createdAtRaw
         } as any);
@@ -1336,6 +1382,114 @@ class PaymentController {
     } catch (walletError) {
       console.error("Error creating wallet transaction for order:", walletError);
       // Continue with response even if wallet transaction creation fails
+    }
+
+    // ---------- Payment Success Notifications ----------
+    try {
+      console.log(`🔔 Triggering Payment Success notifications for Order ${orderId}...`);
+      
+      // 1. Notify Creator/User
+      const pointsEarned = Number((tempOrder as any).loyalty_points_will_earn) || 0;
+      let tierNote = "";
+      if (pointsEarned > 0) {
+        // Resolve network and tier
+        try {
+          const visited = new Set<number>();
+          const toProcess = [businessId];
+          while (toProcess.length > 0) {
+            const currentId = toProcess.shift()!;
+            if (visited.has(currentId)) continue;
+            visited.add(currentId);
+            const associates = await BusinessAssociate.findAll({
+              where: { parent_business_id: currentId },
+              attributes: ['associate_business_id']
+            });
+            const parents = await BusinessAssociate.findAll({
+              where: { associate_business_id: currentId },
+              attributes: ['parent_business_id']
+            });
+            associates.forEach((a: any) => {
+              if (!visited.has(a.associate_business_id)) toProcess.push(a.associate_business_id);
+            });
+            parents.forEach((p: any) => {
+              if (!visited.has(p.parent_business_id)) toProcess.push(p.parent_business_id);
+            });
+          }
+          const networkIds = Array.from(visited);
+          const userCards = await Card.findAll({ where: { user_id: userId } });
+          const cardNumbers = userCards.map((c) => c.number);
+          const lastVisit = await Visit.findOne({
+            where: {
+              [Op.or]: [
+                { user_id: userId },
+                { card_number: { [Op.in]: cardNumbers } }
+              ],
+              business_id: { [Op.in]: networkIds }
+            },
+            order: [["time", "DESC"]],
+          });
+          
+          let activeTier = "new";
+          if (lastVisit) {
+            activeTier = lastVisit.tier;
+          }
+
+
+          if (activeTier === "premium") {
+            tierNote = ` You earned ${pointsEarned} Creatoo Points (2x Premium Visitor Bonus)!`;
+          } else if (activeTier === "elite") {
+            tierNote = ` You earned ${pointsEarned} Creatoo Points (1.5x Elite Visitor Bonus)!`;
+          } else {
+            tierNote = ` You earned ${pointsEarned} Creatoo Points!`;
+          }
+        } catch (tierErr) {
+          console.error("Error resolving active tier for payment notification:", tierErr);
+          tierNote = ` You earned ${pointsEarned} Creatoo Points!`;
+        }
+      }
+
+      const creator_subject = "💸 Payment Successful!";
+      const creator_text = `Your payment of ₹${finalBill} to ${businessName} has been confirmed.${tierNote} Thank you!`;
+
+      await NewUserNotification.create({
+        user_id: userId,
+        notification_subject: creator_subject,
+        notification_text: creator_text,
+        business_id: businessId,
+        is_redeemed: "CreatorView",
+        order_id: orderId
+      } as any);
+
+      if (user?.remember_token) {
+        await sendPushNotification({
+          title: creator_subject,
+          description: creator_text
+        }, [user.remember_token]);
+      }
+
+      // 2. Notify Business
+      const business_subject = "💰 Payment Received!";
+      const business_text = `You received a payment of ₹${finalBill} from ${receiptName} for Order ${orderId}.`;
+
+      await NewUserNotification.create({
+        user_id: businessId,
+        notification_subject: business_subject,
+        notification_text: business_text,
+        business_id: businessId,
+        is_redeemed: "BusinessView",
+        order_id: orderId
+      } as any);
+
+      const businessRecord = await Business.findByPk(businessId);
+      if (businessRecord?.remember_token) {
+        await sendPushNotification({
+          title: business_subject,
+          description: business_text
+        }, [businessRecord.remember_token]);
+      }
+
+    } catch (notifErr) {
+      console.error("❌ Error during payment success notifications:", notifErr);
     }
 
     // 6) Response matching your Laravel $responseData structure

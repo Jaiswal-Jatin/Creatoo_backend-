@@ -11,16 +11,15 @@ import crypto from "crypto";
 
 
 import NewUserNotification from "../models/NewUserNotification";
-
 import Order from "../models/Order";
-
 import TemporaryOrder from "../models/TemporaryOrder";
-
 import User from "../models/User";
-
 import CreatorPointsTransaction from "../models/CreatorPointsTransaction";
-
 import sequelize from "../db/sequelize";
+import pointsService from "../services/points.service";
+import Card from "../models/Card";
+import Visit from "../models/Visit";
+import BusinessAssociate from "../models/BusinessAssociate";
 
 
 
@@ -119,31 +118,18 @@ class WebApiController {
 
 
       if (roleIdNum === 3) {
-
         // whereIn('is_redeemed', [0, 'CreatorView'])
-
-        where.is_redeemed = { [Op.in]: [0, "CreatorView"] };
-
-      } else if (roleIdNum === 2) {
-
+        where.is_redeemed = { [Op.in]: [0, "0", "CreatorView"] };
+      } else if (roleIdNum === 2 || roleIdNum === 4) {
         // where('is_redeemed', 'BusinessView')
-
         where.is_redeemed = "BusinessView";
-
       } else {
-
         // if other roles shouldn't see anything, you can return empty
-
         return res.status(200).json({
-
           status: false,
-
           message: "Empty Notification.",
-
           data: null,
-
         });
-
       }
 
       
@@ -602,32 +588,14 @@ class WebApiController {
       // Ensure we have the latest data from database
       await business.reload();
 
-      const maxDiscountPercentage = Math.max(
+      const firstTimeDiscountPct = Math.max(
         0,
         Number((business as any).set_first_time_discount) || 0
       );
-      const secondMaxDiscount = Math.max(
+      const regularDiscountPct = Math.max(
         0,
         Number((business as any).set_regular_discount) || 0
       );
-      const minimumOrderAmount = Math.max(
-        0,
-        Number((business as any).min_order) || 0
-      );
-
-
-
-      if (originalBillAmount < minimumOrderAmount) {
-
-        return res.status(400).json({
-
-          status: false,
-
-          message: `Minimum Order Value is: ${minimumOrderAmount}.`,
-
-        });
-
-      }
 
 
 
@@ -649,87 +617,119 @@ class WebApiController {
 
       const isFirstVisit = !existingOrder;
 
+      // Sum active points for this specific business dynamically in real-time
+      const activeCredits = await CreatorPointsTransaction.findAll({
+        where: {
+          user_id: userIdNum,
+          business_id: businessIdNum,
+          credit_debit_remaining_status: "credit",
+          remaining_points: {
+            [Op.gt]: 0
+          }
+        }
+      });
 
-
-      // Sum remaining_points with expiry_date >= now
-
-      const balanceForBusiness =
-
-        (await CreatorPointsTransaction.sum("remaining_points", {
-
-          where: {
-
-            user_id: userIdNum,
-
-            business_id: businessIdNum,
-
-            expiry_date: { [Op.gte]: new Date() },
-
-          },
-
-        })) || 0;
-
-
+      const now = new Date();
+      const balanceForBusiness = activeCredits.reduce(
+        (sum, t) => sum + pointsService.getActivePointsForTransaction(t, now),
+        0
+      );
 
       let discountPercentage: number;
-
-
+      let discountAmount: number;
+      let pointsRedeemedHere: number;
 
       if (isFirstVisit) {
-
-        discountPercentage = maxDiscountPercentage;
-
+        discountPercentage = firstTimeDiscountPct;
+        discountAmount = (originalBillAmount * discountPercentage) / 100;
+        pointsRedeemedHere = 0;
       } else {
-
-        const requiredPoints = (originalBillAmount * secondMaxDiscount) / 100;
-
-
-
-        discountPercentage =
-
-          balanceForBusiness >= requiredPoints
-
-            ? secondMaxDiscount
-
-            : (balanceForBusiness / requiredPoints) * secondMaxDiscount;
-
-
-
-        // min_threshold from settings
-
-        const [rows] = await sequelize.query(
-
-          "SELECT min_threshold FROM settings WHERE min_threshold IS NOT NULL LIMIT 1"
-
-        );
-
-        const settingsRows = rows as Array<{ min_threshold?: number }>;
-
-        const minThreshold = settingsRows[0]?.min_threshold ?? 0;
-
-
-
-        if (discountPercentage < minThreshold) {
-
-          discountPercentage = minThreshold;
-
-        }
-
+        // Combine regular discount % + points redemption
+        const regularDiscountAmount = (originalBillAmount * regularDiscountPct) / 100;
+        const remainingAfterRegular = originalBillAmount - regularDiscountAmount;
+        const maxRedeemablePoints = Math.floor(balanceForBusiness * 0.60);
+        const pointsToRedeem = Math.min(maxRedeemablePoints, Math.max(0, remainingAfterRegular));
+        discountAmount = regularDiscountAmount + pointsToRedeem;
+        pointsRedeemedHere = pointsToRedeem;
+        discountPercentage = originalBillAmount > 0 ? (discountAmount / originalBillAmount) * 100 : 0;
       }
-
-
-
-      const discountAmount = (originalBillAmount * discountPercentage) / 100;
 
       const discountedBill = originalBillAmount - discountAmount;
 
+      // Users earn 10% of the bill amount as loyalty points, multiplied by their active network tier status
+      // 1) Find the associate network IDs for this business
+      const visited = new Set<number>();
+      const toProcess = [businessIdNum];
+
+      while (toProcess.length > 0) {
+        const currentId = toProcess.shift()!;
+        
+        if (visited.has(currentId)) continue;
+        visited.add(currentId);
+
+        // Get all direct associates (where current is parent)
+        const associates = await BusinessAssociate.findAll({
+          where: { parent_business_id: currentId },
+          attributes: ['associate_business_id']
+        });
+
+        // Get all parent businesses (where current is associate)
+        const parents = await BusinessAssociate.findAll({
+          where: { associate_business_id: currentId },
+          attributes: ['parent_business_id']
+        });
+
+        // Add to processing queue
+        associates.forEach((a: any) => {
+          if (!visited.has(a.associate_business_id)) {
+            toProcess.push(a.associate_business_id);
+          }
+        });
+
+        parents.forEach((p: any) => {
+          if (!visited.has(p.parent_business_id)) {
+            toProcess.push(p.parent_business_id);
+          }
+        });
+      }
+
+      const networkIds = Array.from(visited);
+
+      // 2) Find all cards for this user
+      const userCards = await Card.findAll({ where: { user_id: userIdNum } });
+      const cardNumbers = userCards.map((c) => c.number);
+
+      // 3) Find the last visit for this user/card in the network
+      const lastVisit = await Visit.findOne({
+        where: {
+          [Op.or]: [
+            { user_id: userIdNum },
+            { card_number: { [Op.in]: cardNumbers } }
+          ],
+          business_id: { [Op.in]: networkIds }
+        },
+        order: [["time", "DESC"]],
+      });
+
+      // 4) Determine active tier based on last visit's stored tier across network
+      let activeTier = "new";
+      if (lastVisit) {
+        activeTier = lastVisit.tier;
+      }
 
 
-      const loyaltyPointsEarned = Math.round(
+      // 5) Apply tier-based multiplier
+      let pointsMultiplier = 1.0;
+      if (activeTier === "premium") {
+        pointsMultiplier = 2.0;
+      } else if (activeTier === "elite") {
+        pointsMultiplier = 1.5;
+      }
 
-        ((discountedBill * discountPercentage) / 100) * 2
+      // Users earn 10% of the bill amount as loyalty points, multiplied by active tier pointsMultiplier
+      const baseLoyaltyPoints = originalBillAmount * 0.10;
+      const loyaltyPointsEarned = Math.round(baseLoyaltyPoints * pointsMultiplier);
 
-      );
 
 
 
@@ -778,7 +778,7 @@ class WebApiController {
 
       const orderId = `MT${Date.now().toString(36).toUpperCase()}`;
 
-      const pointsRedeemedHere = isFirstVisit ? 0.0 : Number(discountAmount.toFixed(2));
+      pointsRedeemedHere = isFirstVisit ? 0.0 : Number(discountAmount.toFixed(2));
 
 
 

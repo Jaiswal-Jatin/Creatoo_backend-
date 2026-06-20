@@ -48,9 +48,12 @@ import versionRoutes from "./routes/version.routes";
 import exclusiveOfferRoutes from "./routes/exclusiveOffer.routes";
 import legalRoutes from "./routes/legal";
 import subscriptionRoutes from "./routes/subscription.routes";
+import manualPaymentRoutes from "./routes/manualPayment.routes";
 import planRoutes from "./routes/plan.routes";
 import statsRoutes from "./routes/stats.routes";
-import scanRoutes from "./routes/scan.routes"; 
+import scanRoutes from "./routes/scan.routes";
+import bookingRoutes from "./routes/booking.routes";
+import settlementRoutes from "./routes/settlement.routes";
 
 const app = express();
 
@@ -72,7 +75,12 @@ app.use(cors());
 app.use(helmet());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(morgan("dev"));
+// ✅ API Request Logger — prints every request to terminal
+app.use((req, _res, next) => {
+  console.log(`\x1b[36m[${new Date().toLocaleTimeString()}] ➡️  ${req.method} ${req.originalUrl}\x1b[0m`);
+  next();
+});
+app.use(morgan(":method :url :status - :response-time ms"));
 
 // Serve all public files
 app.use("/public", express.static(uploadRoot));
@@ -127,6 +135,9 @@ app.use("/api/subscription", subscriptionRoutes);
 app.use("/api/plan", planRoutes);
 app.use("/api/stats", statsRoutes);
 app.use("/api/scan", scanRoutes);
+app.use("/api/manual-payment", manualPaymentRoutes);
+app.use("/api/booking", bookingRoutes);
+app.use("/api/settlement", settlementRoutes);
 
 // -----------------------------------------------------------------------------
 // ⚠️ Global error handler

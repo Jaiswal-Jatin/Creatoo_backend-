@@ -3,6 +3,7 @@ import { Op } from "sequelize";
 import Card from "../models/Card";
 import Visit, { VisitTier } from "../models/Visit";
 import User from "../models/User";
+import Business from "../models/Business";
 import BusinessAssociate from "../models/BusinessAssociate";
 
 interface AuthUser {
@@ -17,8 +18,10 @@ class VisitController {
   /**
    * Format a Date as IST string "YYYY-MM-DD HH:MM:SS"
    */
-  private formatIST(date: Date): string {
-    return date
+  private formatIST(date: any): string {
+    const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
+    if (!(d instanceof Date) || isNaN(d.getTime())) return "";
+    return d
       .toLocaleString("en-CA", {
         timeZone: "Asia/Kolkata",
         year: "numeric",
@@ -35,8 +38,10 @@ class VisitController {
   /**
    * Format a Date as IST date-only string "YYYY-MM-DD"
    */
-  private formatISTDate(date: Date): string {
-    return date.toLocaleDateString("en-CA", {
+  private formatISTDate(date: any): string {
+    const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
+    if (!(d instanceof Date) || isNaN(d.getTime())) return "";
+    return d.toLocaleDateString("en-CA", {
       timeZone: "Asia/Kolkata",
       year: "numeric",
       month: "2-digit",
@@ -105,12 +110,19 @@ class VisitController {
    * - last visit 8–15 days => "elite"
    * - last visit >15 days => "core"
    */
+  private getTimeMs(t: any): number {
+    if (!t) return 0;
+    if (typeof t === "string") return new Date(t).getTime();
+    if (typeof t === "number") return t;
+    return t.getTime();
+  }
+
   private calculateTier(lastVisit: Visit | null): VisitTier {
     if (!lastVisit) return "new";
 
     const now = Date.now();
-    const last = lastVisit.time.getTime();
-    const diffDays = Math.floor((now - last) / (1000 * 60 * 60 * 24));
+    const timeMs = this.getTimeMs(lastVisit.time);
+    const diffDays = Math.floor((now - timeMs) / (1000 * 60 * 60 * 24));
 
     if (diffDays <= 7) return "premium";
     if (diffDays <= 15) return "elite";
@@ -135,6 +147,51 @@ class VisitController {
     });
 
     return this.calculateTier(lastVisit);
+  }
+
+  /**
+   * Helper: Load business info from both `businesses` and `users` tables,
+   * preferring data from the `businesses` table.
+   * Returns a Map<businessId, { business_name, business_image, business_category }>
+   */
+  private async loadBusinesses(businessIds: number[]): Promise<Map<number, { business_name: string | null; business_image: string | null; business_category: string | null }>> {
+    const businessMap = new Map<number, { business_name: string | null; business_image: string | null; business_category: string | null }>();
+
+    if (businessIds.length === 0) return businessMap;
+
+    // Try businesses table first
+    const bizRecords = await Business.findAll({
+      where: { id: { [Op.in]: businessIds } },
+      attributes: ["id", "business_name", "business_image", "business_category"],
+    });
+
+    const foundIds = new Set<number>();
+    bizRecords.forEach((b: any) => {
+      foundIds.add(b.id);
+      businessMap.set(b.id, {
+        business_name: b.business_name ?? null,
+        business_image: b.business_image ?? null,
+        business_category: b.business_category ?? null,
+      });
+    });
+
+    // Fallback to users table for any IDs not found in businesses
+    const missingIds = businessIds.filter(id => !foundIds.has(id));
+    if (missingIds.length > 0) {
+      const userRecords = await User.findAll({
+        where: { id: { [Op.in]: missingIds } },
+        attributes: ["id", "business_name", "business_image", "business_category"],
+      });
+      userRecords.forEach((u: any) => {
+        businessMap.set(u.id, {
+          business_name: u.business_name ?? null,
+          business_image: u.business_image ?? null,
+          business_category: u.business_category ?? null,
+        });
+      });
+    }
+
+    return businessMap;
   }
 
   /**
@@ -210,18 +267,7 @@ class VisitController {
       }
 
       // Load business information for network visits
-      const businesses = await User.findAll({
-        where: { id: { [Op.in]: businessIdsList } },
-        attributes: ["id", "business_name", "business_image"],
-      });
-
-      const businessMap = new Map<number, { business_name: string | null; business_image: string | null }>();
-      businesses.forEach((b: any) => {
-        businessMap.set(b.id, {
-          business_name: b.business_name ?? null,
-          business_image: b.business_image ?? null,
-        });
-      });
+      const businessMap = await this.loadBusinesses(businessIdsList);
 
       // 4) Load users for user_image
       const rawUserIds: (number | string | null)[] = [
@@ -262,6 +308,16 @@ class VisitController {
           ? userMap.get(cardUserId)!
           : null;
 
+      // Recalculate tiers per visit in history (stored tiers may be stale)
+      const historyAsc = [...history].sort((a, b) => this.getTimeMs(a.time) - this.getTimeMs(b.time));
+      const recalculatedTiers = new Map<number, VisitTier>();
+      let lastHistoryVisit: Visit | null = null;
+      for (const hv of historyAsc) {
+        const correctTier = this.calculateTier(lastHistoryVisit);
+        recalculatedTiers.set(hv.id, correctTier);
+        lastHistoryVisit = hv;
+      }
+
       return res.status(200).json({
         status: true,
         card: {
@@ -283,7 +339,7 @@ class VisitController {
             business_id: v.business_id,
             business_name: businessInfo?.business_name ?? null,
             business_image: businessInfo?.business_image ?? null,
-            tier: v.tier,
+            tier: recalculatedTiers.get(v.id) || "new",
             time: this.formatIST(v.time), // IST
             user_image: u?.user_image ?? null,
             user_name: u?.name ?? null,
@@ -360,18 +416,17 @@ class VisitController {
       });
 
       // Load business information for the response
-      const businesses = await User.findAll({
-        where: { id: businessId },
-        attributes: ["id", "business_name", "business_image"],
-      });
+      const businessMap = await this.loadBusinesses([businessId]);
 
-      const businessMap = new Map<number, { business_name: string | null; business_image: string | null }>();
-      businesses.forEach((b: any) => {
-        businessMap.set(b.id, {
-          business_name: b.business_name ?? null,
-          business_image: b.business_image ?? null,
-        });
-      });
+      // Recalculate tiers per visit in history (stored tiers may be stale)
+      const historyAsc = [...history].sort((a, b) => this.getTimeMs(a.time) - this.getTimeMs(b.time));
+      const historyTiers = new Map<number, VisitTier>();
+      let lastHistoryVisit: Visit | null = null;
+      for (const hv of historyAsc) {
+        const correctTier = this.calculateTier(lastHistoryVisit);
+        historyTiers.set(hv.id, correctTier);
+        lastHistoryVisit = hv;
+      }
 
       return res.status(200).json({
         status: true,
@@ -391,7 +446,7 @@ class VisitController {
             business_id: v.business_id,
             business_name: businessInfo?.business_name ?? null,
             business_image: businessInfo?.business_image ?? null,
-            tier: v.tier,
+            tier: historyTiers.get(v.id) || "new",
             time: this.formatIST(v.time), // IST
           };
         }),
@@ -483,18 +538,7 @@ class VisitController {
       });
 
       // Load business information for all businesses in the visit data
-      const businesses = await User.findAll({
-        where: { id: { [Op.in]: businessIds } },
-        attributes: ["id", "business_name", "business_image"],
-      });
-
-      const businessMap = new Map<number, { business_name: string | null; business_image: string | null }>();
-      businesses.forEach((b: any) => {
-        businessMap.set(b.id, {
-          business_name: b.business_name ?? null,
-          business_image: b.business_image ?? null,
-        });
-      });
+      const businessMap = await this.loadBusinesses(businessIds);
 
       const summary: Record<VisitTier, number> = {
         premium: 0,
@@ -517,10 +561,33 @@ class VisitController {
         visits: DayVisit[];
       };
 
+      // Recalculate tiers on-the-fly (stored tiers may be stale due to cascading bug)
+      // Group visits by card_number, process chronologically to determine correct tier per visit
+      const visitsByCard = new Map<number, typeof visits>();
+      for (const v of visits) {
+        if (!visitsByCard.has(v.card_number)) {
+          visitsByCard.set(v.card_number, []);
+        }
+        visitsByCard.get(v.card_number)!.push(v);
+      }
+
+      const recalculatedTiers = new Map<number, VisitTier>();
+      for (const [, cardVisits] of visitsByCard) {
+        // Sort ASC to process chronologically
+        cardVisits.sort((a, b) => this.getTimeMs(a.time) - this.getTimeMs(b.time));
+        let lastVisit: Visit | null = null;
+        for (const cv of cardVisits) {
+          const correctTier = this.calculateTier(lastVisit);
+          recalculatedTiers.set(cv.id, correctTier);
+          lastVisit = cv;
+        }
+      }
+
       const daysMap = new Map<string, DayGroup>();
 
       for (const v of visits) {
-        summary[v.tier] = (summary[v.tier] || 0) + 1;
+        const correctTier = recalculatedTiers.get(v.id) || "new";
+        summary[correctTier] = (summary[correctTier] || 0) + 1;
 
         // Use IST date
         const dateKey = this.formatISTDate(v.time);
@@ -535,7 +602,7 @@ class VisitController {
         group.visits.push({
           card_number: v.card_number,
           name: cardNameMap.get(v.card_number) ?? null,
-          tier: v.tier,
+          tier: correctTier,
           time: this.formatIST(v.time), // IST
           business_id: v.business_id,
           business_name: businessInfo?.business_name ?? null,
@@ -590,7 +657,7 @@ class VisitController {
         return res.status(200).json({
           status: true,
           total_visits: 0,
-          restaurants: [],
+          businesses: [],
         });
       }
 
@@ -609,7 +676,7 @@ class VisitController {
         return res.status(200).json({
           status: true,
           total_visits: 0,
-          restaurants: [],
+          businesses: [],
         });
       }
 
@@ -626,26 +693,10 @@ class VisitController {
 
       // 4) Load businesses (correct columns)
       const businessIds = Array.from(byBusiness.keys());
+      const businessMap = await this.loadBusinesses(businessIds);
 
-      const businesses = await User.findAll({
-        where: { id: { [Op.in]: businessIds } },
-        attributes: ["id", "business_name", "business_image"],
-      });
-
-      const businessMap = new Map<
-        number,
-        { business_name: string | null; business_image: string | null }
-      >();
-
-      businesses.forEach((b: any) => {
-        businessMap.set(b.id, {
-          business_name: b.business_name ?? null,
-          business_image: b.business_image ?? null,
-        });
-      });
-
-      // 5) Build restaurant-wise structure WITH visits and associate business info
-      const restaurants = Array.from(byBusiness.entries()).map(
+      // 5) Build business-wise structure WITH visits and associate business info
+      const businessesData = Array.from(byBusiness.entries()).map(
         ([businessId, bizVisits]) => {
           const lastVisit = bizVisits[0]; // already sorted DESC
           const currentTier = this.calculateTier(lastVisit);
@@ -654,18 +705,30 @@ class VisitController {
             businessMap.get(businessId) || {
               business_name: null,
               business_image: null,
+              business_category: null,
             };
+
+          // Recalculate tiers per visit in this business's history
+          const bizVisitsAsc = [...bizVisits].sort((a, b) => this.getTimeMs(a.time) - this.getTimeMs(b.time));
+          const bizVisitTiers = new Map<number, VisitTier>();
+          let lastBizVisit: Visit | null = null;
+          for (const bv of bizVisitsAsc) {
+            const correctTier = this.calculateTier(lastBizVisit);
+            bizVisitTiers.set(bv.id, correctTier);
+            lastBizVisit = bv;
+          }
 
           return {
             business_id: businessId,
             business_name: bizInfo.business_name,
             business_image: bizInfo.business_image,
+            business_category: bizInfo.business_category,
             current_tier: currentTier,
             total_visits: bizVisits.length,
             last_visit: this.formatIST(lastVisit.time), // IST
             visits: bizVisits.map((v) => ({
               time: this.formatIST(v.time), // IST
-              tier: v.tier,
+              tier: bizVisitTiers.get(v.id) || "new",
               card_number: v.card_number,
               business_id: v.business_id,
               business_name: bizInfo.business_name,
@@ -674,8 +737,8 @@ class VisitController {
         }
       );
 
-      // 6) Sort restaurants by last_visit (DESC)
-      restaurants.sort(
+      // 6) Sort businesses by last_visit (DESC)
+      businessesData.sort(
         (a, b) =>
           new Date(b.last_visit).getTime() - new Date(a.last_visit).getTime()
       );
@@ -683,7 +746,7 @@ class VisitController {
       return res.status(200).json({
         status: true,
         total_visits: totalVisits,
-        restaurants,
+        businesses: businessesData,
       });
     } catch (err: any) {
       console.error("userHistory error:", err);
@@ -743,27 +806,21 @@ class VisitController {
         });
       }
 
-      // 3) Load businesses (business_name & business_image from User table)
+      // 3) Load businesses (business_name & business_image from businesses/user tables)
       const businessIds = Array.from(new Set(visits.map((v) => v.business_id)));
+      const businessMap = await this.loadBusinesses(businessIds);
 
-      const businesses = await User.findAll({
-        where: { id: { [Op.in]: businessIds } },
-        attributes: ["id", "business_name", "business_image"],
-      });
+      // 4) Recalculate tiers per visit (stored tiers may be stale)
+      const visitsAsc = [...visits].sort((a, b) => this.getTimeMs(a.time) - this.getTimeMs(b.time));
+      const recalculatedTiers = new Map<number, VisitTier>();
+      let lastVisitForTier: Visit | null = null;
+      for (const cv of visitsAsc) {
+        const correctTier = this.calculateTier(lastVisitForTier);
+        recalculatedTiers.set(cv.id, correctTier);
+        lastVisitForTier = cv;
+      }
 
-      const businessMap = new Map<
-        number,
-        { business_name: string | null; business_image: string | null }
-      >();
-
-      businesses.forEach((b: any) => {
-        businessMap.set(b.id, {
-          business_name: b.business_name ?? null,
-          business_image: b.business_image ?? null,
-        });
-      });
-
-      // 4) Build flat history list
+      // 5) Build flat history list
       const history = visits.map((v) => {
         const biz =
           businessMap.get(v.business_id) || {
@@ -777,7 +834,7 @@ class VisitController {
           business_name: biz.business_name,
           business_image: biz.business_image,
           time: this.formatIST(v.time), // IST
-          tier: v.tier,
+          tier: recalculatedTiers.get(v.id) || "new",
           card_number: v.card_number,
         };
       });
@@ -788,6 +845,187 @@ class VisitController {
       });
     } catch (err: any) {
       console.error("userAllHistory error:", err);
+      return res.status(500).json({
+        status: false,
+        message: "Server error: " + err.message,
+      });
+    }
+  }
+  /**
+   * USER SIDE
+   * GET /api/visit/today-count?business_id=X
+   * Returns today's visit count for the logged-in user at the given business.
+   */
+  async getTodayVisitCount(req: AuthRequest, res: Response) {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ status: false, message: "Unauthorized" });
+      }
+      const userId = req.user.id;
+      const businessIdRaw = req.query.business_id;
+      if (!businessIdRaw) {
+        return res.status(422).json({ status: false, message: "business_id is required" });
+      }
+      const businessId = Number(businessIdRaw);
+      if (Number.isNaN(businessId)) {
+        return res.status(422).json({ status: false, message: "business_id must be numeric" });
+      }
+
+      // Find all cards for this user
+      const cards = await Card.findAll({ where: { user_id: userId } });
+      const cardNumbers = cards.map((c) => c.number);
+      if (cardNumbers.length === 0) {
+        return res.json({ status: true, data: { today_count: 0, tier: "new" } });
+      }
+
+      // Get today's start and end in IST
+      const now = new Date();
+      const istOffset = 5.5 * 60 * 60 * 1000;
+      const istNow = new Date(now.getTime() + istOffset);
+      const istStartOfDay = new Date(Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate(), 0, 0, 0));
+      const istEndOfDay = new Date(Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate(), 23, 59, 59, 999));
+
+      const todayCount = await Visit.count({
+        where: {
+          user_id: userId,
+          business_id: businessId,
+          card_number: { [Op.in]: cardNumbers },
+          time: { [Op.gte]: istStartOfDay, [Op.lte]: istEndOfDay },
+        },
+      });
+
+      // Calculate user's current tier for this business
+      const networkIds = await this.getAssociateNetwork(businessId);
+      const lastVisit = await Visit.findOne({
+        where: {
+          user_id: userId,
+          business_id: { [Op.in]: networkIds },
+          card_number: { [Op.in]: cardNumbers },
+        },
+        order: [["time", "DESC"]],
+      });
+      const tier = this.calculateTier(lastVisit);
+
+      return res.json({ status: true, data: { today_count: todayCount, tier } });
+    } catch (err: any) {
+      console.error("getTodayVisitCount error:", err);
+      return res.status(500).json({ status: false, message: "Server error: " + err.message });
+    }
+  }
+
+  /**
+    * BUSINESS SIDE
+    * GET /api/visit/business-visits
+    * Returns a flat list of all visits for this business with user details.
+    * Supports optional search by user name and date filtering.
+    */
+  async getBusinessVisits(req: AuthRequest, res: Response) {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ status: false, message: "Unauthorized" });
+      }
+      const businessId = req.user.id;
+      const search = req.query.search as string | undefined;
+      const from = req.query.from as string | undefined;
+      const to = req.query.to as string | undefined;
+
+      const whereClause: any = { business_id: businessId };
+
+      if (from || to) {
+        const timeFilter: any = {};
+        if (from) timeFilter[Op.gte] = new Date(from);
+        if (to) timeFilter[Op.lte] = new Date(to);
+        whereClause.time = timeFilter;
+      }
+
+      let visits = await Visit.findAll({
+        where: whereClause,
+        order: [["time", "DESC"]],
+      });
+
+      // Load user details linked via card user_id
+      const userIds = Array.from(
+        new Set(visits.map((v) => v.user_id).filter(Boolean).map(Number))
+      );
+
+      const userMap = new Map<number, { name: string | null; user_image: string | null; mobile: string | null }>();
+      if (userIds.length > 0) {
+        const users = await User.findAll({
+          where: { id: { [Op.in]: userIds } },
+          attributes: ["id", "name", "user_image", "mobile"],
+        });
+        users.forEach((u: any) => {
+          userMap.set(u.id, {
+            name: u.name ?? null,
+            user_image: u.user_image ?? null,
+            mobile: u.mobile ?? null,
+          });
+        });
+      }
+
+      // Load card names
+      const cardNumbers = Array.from(new Set(visits.map((v) => v.card_number)));
+      const cards = await Card.findAll({
+        where: { number: { [Op.in]: cardNumbers } },
+        attributes: ["number", "name"],
+      });
+      const cardNameMap = new Map<number, string | null>();
+      cards.forEach((c: any) => {
+        cardNameMap.set(c.number, c.name ?? null);
+      });
+
+      // Recalculate tiers on-the-fly (stored tiers may be stale)
+      const visitsByCard = new Map<number, typeof visits>();
+      for (const v of visits) {
+        if (!visitsByCard.has(v.card_number)) {
+          visitsByCard.set(v.card_number, []);
+        }
+        visitsByCard.get(v.card_number)!.push(v);
+      }
+      const recalculatedTiers = new Map<number, VisitTier>();
+      for (const [, cardVisits] of visitsByCard) {
+        cardVisits.sort((a, b) => this.getTimeMs(a.time) - this.getTimeMs(b.time));
+        let lastVisit: Visit | null = null;
+        for (const cv of cardVisits) {
+          const correctTier = this.calculateTier(lastVisit);
+          recalculatedTiers.set(cv.id, correctTier);
+          lastVisit = cv;
+        }
+      }
+
+      let result = visits.map((v) => {
+        const userId = v.user_id ? Number(v.user_id) : null;
+        const user = userId && userMap.has(userId) ? userMap.get(userId)! : null;
+        return {
+          id: v.id,
+          user_id: v.user_id,
+          card_number: v.card_number,
+          card_name: cardNameMap.get(v.card_number) ?? null,
+          tier: recalculatedTiers.get(v.id) || "new",
+          time: this.formatIST(v.time),
+          user_name: user?.name ?? null,
+          user_image: user?.user_image ?? null,
+          user_mobile: user?.mobile ?? null,
+        };
+      });
+
+      // Client-side search filter by user name
+      if (search && search.trim().length > 0) {
+        const q = search.toLowerCase();
+        result = result.filter(
+          (r) =>
+            (r.user_name && r.user_name.toLowerCase().includes(q)) ||
+            (r.card_name && r.card_name.toLowerCase().includes(q))
+        );
+      }
+
+      return res.status(200).json({
+        status: true,
+        data: result,
+        total: result.length,
+      });
+    } catch (err: any) {
+      console.error("getBusinessVisits error:", err);
       return res.status(500).json({
         status: false,
         message: "Server error: " + err.message,

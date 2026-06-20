@@ -1,0 +1,44 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const db_1 = __importDefault(require("../config/db"));
+// Import all models to register them with Sequelize
+require("./User");
+require("./Otp");
+require("./Setting");
+require("./Banner");
+require("./Business");
+require("./BusinessAssociate");
+require("./BusinessType");
+require("./Card");
+require("./CreatooRequest");
+require("./CreatorPointsTransaction");
+require("./ExclusiveOffer");
+require("./NewUserNotification");
+require("./NotificationLog");
+require("./Order");
+require("./Payment");
+require("./Plan");
+require("./Post");
+require("./PostInterest");
+require("./PostReport");
+require("./PromotionalNotification");
+require("./Referrer");
+require("./Review");
+require("./Subscription");
+require("./TemporaryOrder");
+require("./UserNotification");
+require("./Version");
+require("./Visit");
+require("./WalletTransaction");
+require("./WithdrawRequest");
+require("./invoice");
+require("./ManualPayment");
+require("./TurfOption");
+require("./Booking");
+require("./Settlement");
+// Ensure all models are properly associated with this sequelize instance
+const models = db_1.default.models;
+exports.default = db_1.default;

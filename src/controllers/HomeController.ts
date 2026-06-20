@@ -11,6 +11,7 @@ import { Op, literal, QueryTypes } from "sequelize";
 import sequelize from "../db/sequelize";
 
 import User from "../models/User";
+import Business from "../models/Business";
 import Banner from "../models/Banner";
 import Order from "../models/Order";
 import Post from "../models/Post";
@@ -26,7 +27,7 @@ class HomeController {
   // ----------------------------
   async getHomeData(req: Request, res: Response) {
     try {
-      const { user_id } = req.body as { user_id?: number | string };
+      const { user_id, business_category } = req.body as { user_id?: number | string; business_category?: string };
 
       // validation
       const errors: Record<string, string[]> = {};
@@ -45,7 +46,33 @@ class HomeController {
         });
       }
 
-      const user = await User.findByPk(userIdNum);
+      let user: User | null = null;
+      const authUser = (req as any).user;
+
+      if (authUser && authUser.role_id === 2) {
+        // Authenticated as business: userIdNum is the business ID.
+        // Let's find the business record first to get the correct mobile number.
+        const business = await Business.findByPk(userIdNum);
+        if (business) {
+          const businessMobile = business.business_mobile || business.mobile;
+          if (businessMobile) {
+            user = await User.findOne({
+              where: {
+                [Op.or]: [
+                  { mobile: businessMobile },
+                  { business_mobile: businessMobile }
+                ]
+              }
+            });
+          }
+        }
+      }
+
+      // If not resolved via business login, try direct lookup in users table
+      if (!user) {
+        user = await User.findByPk(userIdNum);
+      }
+
       if (!user) {
         return res.status(404).json({
           status: false,
@@ -91,46 +118,147 @@ class HomeController {
         limit: 5,
       });
 
-      // Top business
-      const topBusinessRaw = await User.findAll({
-        attributes: [
-          "id",
-          "business_fullname",
-          "business_name",
-          "business_email",
-          "business_mobile",
-          "business_site_url",
-          "business_image",
-          "is_top",
-          "is_active",
-          "business_address",
-          "set_first_time_discount",
-          "set_regular_discount",
-        ],
-        where: {
-          is_top: 1,
-          role_id: 2,
-        },
-        order: [["created_at", "DESC"]],
-        limit: 5,
-      });
+      // Top business - dynamic based on popularity (orders, visits, reviews)
+      let topBusiness: any[] = [];
+      try {
+        const popularityQuery = `
+          SELECT b.id,
+            (COALESCE(o.order_count, 0) * 2 + COALESCE(v.visit_count, 0) * 1 + COALESCE(r.review_count, 0) * 3) as popularity_score
+          FROM businesses b
+          LEFT JOIN (
+            SELECT business_id, COUNT(*) as order_count
+            FROM orders
+            GROUP BY business_id
+          ) o ON b.id = o.business_id
+          LEFT JOIN (
+            SELECT business_id, COUNT(DISTINCT user_id) as visit_count
+            FROM visits
+            GROUP BY business_id
+          ) v ON b.id = v.business_id
+          LEFT JOIN (
+            SELECT business_id, COUNT(*) as review_count
+            FROM reviews
+            GROUP BY business_id
+          ) r ON b.id = r.business_id
+          WHERE b.role_id = 2 AND (b.is_active = 1 OR b.is_active = true)
+          ${business_category && ['restaurant', 'salon', 'turf'].includes(business_category.toLowerCase())
+            ? "AND b.business_category = :business_category"
+            : ""}
+          ORDER BY popularity_score DESC
+          LIMIT 10
+        `;
+        const replacements: any = {};
+        if (business_category && ['restaurant', 'salon', 'turf'].includes(business_category.toLowerCase())) {
+          replacements.business_category = business_category.toLowerCase();
+        }
+        const popularBusinessRows: any[] = await sequelize.query(popularityQuery, {
+          replacements,
+          type: QueryTypes.SELECT,
+        });
+        console.log(`[getHomeData] Popular business query returned ${popularBusinessRows.length} rows`);
 
-      // Apply appropriate discount logic for top businesses
-      const topBusiness = await Promise.all(
-        topBusinessRaw.map(async (business) => {
-          const hasVisitedBefore = await this.hasUserVisitedBusinessBefore(
-            userIdNum,
-            business.id
+        if (popularBusinessRows.length > 0) {
+          const ids = popularBusinessRows.map((row: any) => row.id);
+          const topBusinessRaw = await Business.findAll({
+            attributes: [
+              "id",
+              "business_fullname",
+              "business_name",
+              "business_email",
+              "business_mobile",
+              "business_site_url",
+              "business_image",
+              "is_top",
+              "is_active",
+              "business_address",
+              "business_area",
+              "set_first_time_discount",
+              "set_regular_discount",
+              "business_category",
+              "category_attributes",
+            ],
+            where: { id: { [Op.in]: ids } },
+          });
+
+          // Maintain order from popularity query
+          const idOrder = ids.reduce((acc: Record<number, number>, id: number, index: number) => {
+            acc[id] = index;
+            return acc;
+          }, {} as Record<number, number>);
+          topBusinessRaw.sort((a, b) => (idOrder[a.id] ?? 0) - (idOrder[b.id] ?? 0));
+
+          topBusiness = await Promise.all(
+            topBusinessRaw.map(async (business) => {
+              const hasVisitedBefore = await this.hasUserVisitedBusinessBefore(
+                user.id,
+                business.id
+              );
+              return await this.applyAppropriateDiscount(business, hasVisitedBefore);
+            })
           );
-          return this.applyAppropriateDiscount(business, hasVisitedBefore);
-        })
-      );
+        }
+      } catch (popularityError) {
+        console.error("[getHomeData] Popularity query failed, using fallback:", popularityError);
+      }
+
+      // Fallback: if popularity query returned nothing, get active businesses directly
+      if (topBusiness.length === 0) {
+        console.log("[getHomeData] Using fallback - fetching recent active businesses");
+        const fallbackWhere: any = {
+          role_id: 2,
+          is_active: true,
+        };
+        if (business_category && ['restaurant', 'salon', 'turf'].includes(business_category.toLowerCase())) {
+          fallbackWhere.business_category = business_category.toLowerCase();
+        }
+        const fallbackBusinesses = await Business.findAll({
+          attributes: [
+            "id",
+            "business_fullname",
+            "business_name",
+            "business_email",
+            "business_mobile",
+            "business_site_url",
+            "business_image",
+            "is_top",
+            "is_active",
+            "business_address",
+            "business_area",
+            "set_first_time_discount",
+            "set_regular_discount",
+            "business_category",
+            "category_attributes",
+          ],
+          where: fallbackWhere,
+          order: [["created_at", "DESC"]],
+          limit: 10,
+        });
+        topBusiness = await Promise.all(
+          fallbackBusinesses.map(async (business) => {
+            const hasVisitedBefore = await this.hasUserVisitedBusinessBefore(
+              user.id,
+              business.id
+            );
+            return await this.applyAppropriateDiscount(business, hasVisitedBefore);
+          })
+        );
+      }
+      console.log(`[getHomeData] Returning ${topBusiness.length} top businesses`);
 
       // New creators – you ended up sending [] in Laravel, so we mirror that
       const newCreator: any[] = [];
 
       // New business (excluding current user)
-      const newBusinessRaw = await User.findAll({
+      const newBusinessWhere: any = {
+        role_id: 2,
+        id: { [Op.ne]: userIdNum },
+      };
+      // Apply category filter if provided
+      if (business_category && ['restaurant', 'salon', 'turf'].includes(business_category.toLowerCase())) {
+        newBusinessWhere.business_category = business_category.toLowerCase();
+      }
+
+      const newBusinessRaw = await Business.findAll({
         attributes: [
           "id",
           "business_fullname",
@@ -143,11 +271,10 @@ class HomeController {
           "business_area",
           "set_first_time_discount",
           "set_regular_discount",
+          "business_category",
+          "category_attributes",
         ],
-        where: {
-          role_id: 2,
-          id: { [Op.ne]: userIdNum },
-        },
+        where: newBusinessWhere,
         order: [["created_at", "DESC"]],
         limit: 5,
       });
@@ -156,10 +283,10 @@ class HomeController {
       const newBusiness = await Promise.all(
         newBusinessRaw.map(async (business) => {
           const hasVisitedBefore = await this.hasUserVisitedBusinessBefore(
-            userIdNum,
+            user.id,
             business.id
           );
-          return this.applyAppropriateDiscount(business, hasVisitedBefore);
+          return await this.applyAppropriateDiscount(business, hasVisitedBefore);
         })
       );
 
@@ -175,13 +302,13 @@ class HomeController {
             order_id: String(lastOrderId),
             transaction_d: null,
             payment_status: "0",
-            user_id: userIdNum,
+            user_id: user.id,
           } as any,
         });
 
         if (post) {
           // fetch payment status (stubbed)
-          paymentStatusData = await this.fetchPaymentStatus(userIdNum);
+          paymentStatusData = await this.fetchPaymentStatus(user.id);
 
           const status = paymentStatusData?.data?.items?.[0]?.status;
 
@@ -194,7 +321,7 @@ class HomeController {
 
             await User.update(
               { last_order_id: null },
-              { where: { id: userIdNum } }
+              { where: { id: user.id } }
             );
           } else if (status === "captured") {
             const upiTransactionId =
@@ -202,16 +329,34 @@ class HomeController {
                 ?.upi_transaction_id;
 
             await this.updateStatus(
-              userIdNum,
+              user.id,
               post.id,
               JSON.stringify(paymentStatusData.data),
               status
             );
             await User.update(
               { last_order_id: null },
-              { where: { id: userIdNum } }
+              { where: { id: user.id } }
             );
           }
+        }
+      }
+
+      // Attach average ratings from reviews to all businesses
+      const allBusinessesForRating = [...topBusiness, ...newBusiness].filter(b => b && b.id);
+      if (allBusinessesForRating.length > 0) {
+        const ratingRows = await sequelize.query(`
+          SELECT business_id, ROUND(AVG(experience), 1) as average_rating
+          FROM reviews
+          WHERE business_id IN (:ids)
+          GROUP BY business_id
+        `, {
+          replacements: { ids: allBusinessesForRating.map(b => b.id) },
+          type: QueryTypes.SELECT,
+        }) as any[];
+        const ratingMap = new Map(ratingRows.map(r => [r.business_id, Number(r.average_rating)]));
+        for (const b of allBusinessesForRating) {
+          b.average_rating = ratingMap.get(b.id) ?? 0;
         }
       }
 
@@ -314,19 +459,9 @@ class HomeController {
           profile_completion_status: profileCompletion,
         };
       } else if (user.role_id === 3) {
-        // CREATOR SIDE – Creatoo points from creator_points_transactions
-        const creatooPoints =
-          (await CreatorPointsTransaction.sum("remaining_points", {
-            where: {
-              user_id: userIdNum,
-              expiry_date: {
-                [Op.gte]: new Date(),
-              },
-            },
-          })) || 0;
-
+        // CREATOR SIDE – Creatoo points directly from users table
         roleSpecificData = {
-          user_creatoo_points: Number(creatooPoints),
+          user_creatoo_points: Number(user.user_creatoo_points || 0),
         };
       }
 
@@ -334,17 +469,18 @@ class HomeController {
       const pendingReviewRows = (await sequelize.query(
         `
         SELECT 
-          users.business_name,
+          COALESCE(businesses.business_name, users.business_name) AS business_name,
           orders.business_id,
           orders.order_id
         FROM orders
-        JOIN users ON orders.business_id = users.id
+        LEFT JOIN businesses ON orders.business_id = businesses.id
+        LEFT JOIN users ON orders.business_id = users.id
         WHERE orders.user_id = :userId
           AND orders.review_status = 'pending'
         LIMIT 1
       `,
         {
-          replacements: { userId: userIdNum },
+          replacements: { userId: user.id },
           type: QueryTypes.SELECT,
         }
       )) as any[];
@@ -354,7 +490,7 @@ class HomeController {
 
       // latest TemporaryOrder for earned_point
       const latestOrder = await TemporaryOrder.findOne({
-        where: { user_id: userIdNum },
+        where: { user_id: user.id },
         order: [["id", "DESC"]],
       });
 
@@ -366,7 +502,7 @@ class HomeController {
       // send its order_id
       let order_id: string | null = null;
       const tempOrder = await TemporaryOrder.findOne({
-        where: { user_id: userIdNum, status: "processing" },
+        where: { user_id: user.id, status: "processing" },
         order: [["created_at", "DESC"]],
       });
 
@@ -380,6 +516,29 @@ class HomeController {
         }
       }
 
+      // Category summary: count of businesses per category
+      const categoryCounts = await User.findAll({
+        attributes: [
+          'business_category',
+          [literal('COUNT(*)'), 'count'],
+        ],
+        where: { role_id: 2, is_active: true },
+        group: ['business_category'],
+        raw: true,
+      });
+
+      const categories_summary = {
+        restaurant: 0,
+        salon: 0,
+        turf: 0,
+      };
+      (categoryCounts as any[]).forEach((row: any) => {
+        const cat = row.business_category as string;
+        if (cat && cat in categories_summary) {
+          (categories_summary as any)[cat] = Number(row.count) || 0;
+        }
+      });
+
       const data = {
         banners,
         top_reviews: topReviews,
@@ -392,6 +551,8 @@ class HomeController {
         is_pending_review_flag,
         earned_point,
         order_id,
+        categories_summary,
+        applied_category_filter: business_category || null,
       };
 
       return res.status(200).json({
@@ -668,7 +829,7 @@ class HomeController {
    * @param hasVisitedBefore - Whether user has visited before
    * @returns Business object with appropriate discount applied
    */
-  private applyAppropriateDiscount(business: any, hasVisitedBefore: boolean): any {
+  private async applyAppropriateDiscount(business: any, hasVisitedBefore: boolean): Promise<any> {
     const businessData = business.toJSON ? business.toJSON() : { ...business };
     
     if (hasVisitedBefore) {
@@ -679,6 +840,50 @@ class HomeController {
       // First time visitor - show first time discount
       businessData.applicable_discount = businessData.set_first_time_discount;
       businessData.discount_type = 'first_time';
+    }
+
+    // Fallback logic for category_attributes in lists/feeds
+    const hasNoCategoryAttrs = !businessData.category_attributes || 
+                                businessData.category_attributes === 'null' || 
+                                businessData.category_attributes === '""' || 
+                                businessData.category_attributes === '' || 
+                                (typeof businessData.category_attributes === 'object' && Object.keys(businessData.category_attributes).length === 0) ||
+                                (typeof businessData.category_attributes === 'string' && (businessData.category_attributes.trim() === '{}' || businessData.category_attributes.trim() === 'null'));
+
+    if (businessData.role_id === 2 && (hasNoCategoryAttrs || !businessData.business_category)) {
+      const businessMobile = businessData.business_mobile || businessData.mobile;
+      if (businessMobile) {
+        try {
+          const userFallback = await User.findOne({
+            where: {
+              [Op.or]: [
+                { mobile: businessMobile },
+                { business_mobile: businessMobile }
+              ]
+            },
+            attributes: ["business_category", "category_attributes"],
+          });
+          if (userFallback) {
+            const fb = userFallback.toJSON() as any;
+            
+            if (fb.category_attributes && typeof fb.category_attributes === 'string') {
+              try {
+                fb.category_attributes = JSON.parse(fb.category_attributes);
+              } catch (_) {}
+            }
+            
+            if (!businessData.category_attributes || hasNoCategoryAttrs) businessData.category_attributes = fb.category_attributes;
+            if (!businessData.business_category) businessData.business_category = fb.business_category;
+          }
+        } catch (_) {}
+      }
+    }
+
+    // Explicitly parse category_attributes if it is a JSON string
+    if (businessData.category_attributes && typeof businessData.category_attributes === 'string') {
+      try {
+        businessData.category_attributes = JSON.parse(businessData.category_attributes);
+      } catch (_) {}
     }
     
     return businessData;

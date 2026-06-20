@@ -1,0 +1,40 @@
+{
+  "bookingsSearch": [
+    {
+      "id": 4,
+      "user_id": 997,
+      "business_id": 989,
+      "booking_date": "2026-05-29",
+      "status": "accepted",
+      "advance_amount": "50.00",
+      "advance_payment_status": "none",
+      "razorpay_payment_id": null,
+      "created_at": "2026-05-28 14:40:55"
+    },
+    {
+      "id": 3,
+      "user_id": 163,
+      "business_id": 989,
+      "booking_date": "2026-05-29",
+      "status": "accepted",
+      "advance_amount": "50.00",
+      "advance_payment_status": "paid",
+      "razorpay_payment_id": "pay_SuhyvqxwC7pCKU",
+      "created_at": "2026-05-28 13:05:27"
+    }
+  ],
+  "manualPaymentsSearch": [],
+  "ordersSearch": [
+    {
+      "id": 22,
+      "user_id": 182,
+      "business_id": 167,
+      "order_id": "MT67ff674b334b8",
+      "original_bill_amount": "50.00",
+      "final_bill_amount": "25.00",
+      "status": "Paid",
+      "created_at": "2025-04-16 19:16:36"
+    }
+  ],
+  "walletSearch": []
+}

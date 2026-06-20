@@ -3,19 +3,27 @@
  * File Purpose: User Service. Handles direct DB interactions for User/Business/Creator management.
  * Used By: UserController, AuthController
  * API Connected: N/A
- * Database Model: User
+ * Database Model: User, Business
  * Critical: Yes
  */
 import { Op } from "sequelize";
 import User, { UserAttrs } from "../models/User";
+import Business, { BusinessAttrs } from "../models/Business";
 
 export class UserService {
   async fetch(id: number) {
     return User.findByPk(id);
   }
 
+  async fetchBusiness(id: number) {
+    return Business.findByPk(id);
+  }
+
   async fetchRecord(role: number, fromDate?: string, toDate?: string) {
-    const where: any = { role_id: role };
+    const where: any = {};
+    if (role !== 2) {
+      where.role_id = role;
+    }
 
     if (fromDate && toDate) {
       const endDate = new Date(toDate);
@@ -26,7 +34,11 @@ export class UserService {
       };
     }
 
-    return User.findAll({ where, order: [["createdAt", "DESC"]] });
+    if (role === 2) {
+      return Business.findAll({ where, order: [["createdAt", "DESC"]] });
+    } else {
+      return User.findAll({ where, order: [["createdAt", "DESC"]] });
+    }
   }
 
   async fetchInstagramRecord() {
@@ -48,16 +60,25 @@ export class UserService {
     return updated > 0;
   }
 
+  async changeBusinessStatus(id: number, status: number) {
+    const isActive = status === 1;
+    const [updated] = await Business.update(
+      { is_active: isActive },
+      { where: { id } }
+    );
+    return updated > 0;
+  }
+
   async updateIsTop(id: number, isTop: boolean | number) {
-    const [updated] = await User.update(
+    const [updated] = await Business.update(
       { is_top: Boolean(isTop) },
       { where: { id } }
     );
     return updated > 0;
   }
 
-  async updateBusiness(id: number, data: Partial<UserAttrs>) {
-    const [updated] = await User.update(data, { where: { id } });
+  async updateBusiness(id: number, data: Partial<BusinessAttrs>) {
+    const [updated] = await Business.update(data, { where: { id } });
     return updated > 0;
   }
 
@@ -67,10 +88,9 @@ export class UserService {
   }
 
   async findBusinessByMobile(businessMobile: string) {
-    return User.findOne({
+    return Business.findOne({
       where: {
         business_mobile: businessMobile,
-        role_id: 2,
       },
     });
   }
@@ -95,19 +115,19 @@ export class UserService {
   }
 
   async upsertBusiness(
-    data: Partial<UserAttrs> & { business_mobile: string }
+    data: Partial<BusinessAttrs> & { business_mobile: string }
   ) {
-    let user = await User.findOne({
+    let business = await Business.findOne({
       where: { business_mobile: data.business_mobile },
     });
 
-    if (user) {
-      await user.update(data);
+    if (business) {
+      await business.update(data);
     } else {
-      user = await User.create(data as UserAttrs);
+      business = await Business.create(data as BusinessAttrs);
     }
 
-    return user;
+    return business;
   }
 
   async upsertCreator(data: Partial<UserAttrs> & { mobile: string }) {
@@ -136,7 +156,7 @@ export const findCreatorByMobile = (mobile: string) =>
 export const settingsSnapshot = () => userService.settingsSnapshot();
 
 export const upsertBusiness = (
-  data: Partial<UserAttrs> & { business_mobile: string }
+  data: Partial<BusinessAttrs> & { business_mobile: string }
 ) => userService.upsertBusiness(data);
 
 export const upsertCreator = (

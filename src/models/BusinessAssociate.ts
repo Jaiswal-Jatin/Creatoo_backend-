@@ -5,6 +5,7 @@ import {
 } from "sequelize";
 import sequelize from "../config/db";
 import User from "./User";
+import Business from "./Business";
 
 interface BusinessAssociateAttributes {
   id: number;
@@ -38,7 +39,7 @@ BusinessAssociate.init(
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
       references: {
-        model: User,
+        model: Business,
         key: 'id'
       }
     },
@@ -46,7 +47,7 @@ BusinessAssociate.init(
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
       references: {
-        model: User,
+        model: Business,
         key: 'id'
       }
     },
@@ -62,9 +63,9 @@ BusinessAssociate.init(
 );
 
 // Define associations
-BusinessAssociate.belongsTo(User, { foreignKey: 'parent_business_id', as: 'parentBusiness' });
-BusinessAssociate.belongsTo(User, { foreignKey: 'associate_business_id', as: 'associateBusiness' });
-User.hasMany(BusinessAssociate, { foreignKey: 'parent_business_id', as: 'associates' });
-User.hasMany(BusinessAssociate, { foreignKey: 'associate_business_id', as: 'parentAssociations' });
+BusinessAssociate.belongsTo(Business, { foreignKey: 'parent_business_id', as: 'parentBusiness' });
+BusinessAssociate.belongsTo(Business, { foreignKey: 'associate_business_id', as: 'associateBusiness' });
+Business.hasMany(BusinessAssociate, { foreignKey: 'parent_business_id', as: 'associates' });
+Business.hasMany(BusinessAssociate, { foreignKey: 'associate_business_id', as: 'parentAssociations' });
 
 export default BusinessAssociate;

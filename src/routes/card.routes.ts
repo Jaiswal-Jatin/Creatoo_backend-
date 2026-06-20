@@ -33,4 +33,8 @@ router.post("/add", authJwt,adminOnly, (req, res) =>
   CardController.addCards(req, res)
 );
 
+router.post("/auto-assign", authJwt, (req, res) =>
+  CardController.autoAssign(req, res)
+);
+
 export default router;

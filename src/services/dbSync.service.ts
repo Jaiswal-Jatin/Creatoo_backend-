@@ -28,6 +28,21 @@ class DbSyncService {
       // 3. Perform sync check (Tables & Columns)
       await this.performSync();
 
+      // 3.1. Adjust category_attributes column datatype (JSON/TEXT fallback)
+      await this.adjustCategoryAttributesColumn();
+
+      // 3.2. Adjust bookings status column enum to support 'cancelled'
+      await this.adjustBookingStatusColumn();
+
+      // 3.3. Fix wallet_transactions.via column type (ENUM→VARCHAR) to accept 'advance_payment'
+      await this.fixWalletTransactionViaColumn();
+
+      // 3.4. Reconcile missing wallet transactions for paid advance bookings
+      await this.reconcileMissingAdvanceWalletTxns();
+
+      // 3.5. Migrate business users to the new businesses table
+      await this.performDataMigration();
+
       // 4. Run seeds silently
       await this.runSeeds();
 
@@ -37,6 +52,43 @@ class DbSyncService {
     } catch (error) {
       console.error('❌ DB Sync Error:', error);
       throw error;
+    }
+  }
+
+  private async adjustBookingStatusColumn() {
+    if (!this.sequelize) return;
+    console.log('🔧 Adjusting bookings status column ENUM...');
+    try {
+      await this.sequelize.query(
+        "ALTER TABLE `bookings` MODIFY COLUMN `status` ENUM('pending', 'accepted', 'rejected', 'cancelled') NOT NULL DEFAULT 'pending'"
+      );
+      console.log('✅ bookings status column verified/modified to include cancelled successfully.');
+      this.results.push({ table: 'bookings', field: 'status', status: '🔧 Added cancelled' });
+    } catch (colError) {
+      console.error('❌ Failed to modify bookings status column:', colError);
+    }
+  }
+
+  private async adjustCategoryAttributesColumn() {
+    if (!this.sequelize) return;
+    console.log('🔧 Adjusting category_attributes column type if necessary...');
+    try {
+      await this.sequelize.query(
+        'ALTER TABLE `businesses` MODIFY COLUMN `category_attributes` JSON NULL'
+      );
+      console.log('✅ category_attributes column verified/modified to JSON successfully.');
+      this.results.push({ table: 'businesses', field: 'category_attributes', status: '🔧 Altered to JSON' });
+    } catch (colError) {
+      console.warn('⚠️ Failed to alter category_attributes to JSON, attempting TEXT fallback:', colError);
+      try {
+        await this.sequelize.query(
+          'ALTER TABLE `businesses` MODIFY COLUMN `category_attributes` TEXT NULL'
+        );
+        console.log('✅ category_attributes column verified/modified to TEXT fallback successfully.');
+        this.results.push({ table: 'businesses', field: 'category_attributes', status: '🔧 Altered to TEXT' });
+      } catch (textColError) {
+        console.error('❌ Failed to modify category_attributes column:', textColError);
+      }
     }
   }
 
@@ -157,6 +209,92 @@ class DbSyncService {
     return null;
   }
 
+  private async fixWalletTransactionViaColumn() {
+    if (!this.sequelize) return;
+    try {
+      console.log('🔧 Fixing wallet_transactions.via column type...');
+      // Force ALTER to VARCHAR(255) regardless of current type, to ensure it accepts 'advance_payment'
+      await this.sequelize.query(
+        "ALTER TABLE `wallet_transactions` MODIFY COLUMN `via` VARCHAR(255) DEFAULT NULL"
+      );
+      console.log('✅ wallet_transactions.via column altered to VARCHAR(255)');
+      this.results.push({ table: 'wallet_transactions', field: 'via', status: '🔧 Altered to VARCHAR(255)' });
+    } catch (err) {
+      console.error('❌ Failed to fix wallet_transactions.via column:', err);
+    }
+  }
+
+  private async reconcileMissingAdvanceWalletTxns() {
+    if (!this.sequelize) return;
+    try {
+      // Find bookings with advance_payment_status='paid' but no wallet transaction for them
+      const missing: any = await this.sequelize.query(`
+        SELECT b.id as booking_id, b.business_id, b.advance_amount, b.user_id, b.razorpay_payment_id, b.advance_payment_at
+        FROM bookings b
+        WHERE b.advance_payment_status = 'paid'
+        AND b.advance_amount > 0
+        AND NOT EXISTS (
+          SELECT 1 FROM wallet_transactions wt
+          WHERE wt.user_id = b.business_id
+          AND wt.source_type = 'advance_payment'
+          AND wt.remark LIKE CONCAT('%booking #', b.id, '%')
+        )
+      `, { type: QueryTypes.SELECT });
+
+      if (missing.length === 0) {
+        console.log('✅ No missing advance wallet transactions to reconcile.');
+        return;
+      }
+
+      console.log(`🔧 Found ${missing.length} booking(s) with missing advance wallet transaction(s).`);
+      for (const row of missing as any[]) {
+        console.log(`  → Booking #${row.booking_id}, business=${row.business_id}, amount=${row.advance_amount}`);
+        const createdAt = row.advance_payment_at
+          ? new Date(row.advance_payment_at).toISOString().slice(0, 19).replace('T', ' ')
+          : new Date().toISOString().slice(0, 19).replace('T', ' ');
+        await this.sequelize!.query({
+          query: `INSERT INTO wallet_transactions
+            (user_id, from_user_id, amount, credit_debit, remark, is_withdraw_request, via, settlement_status, source_type, created_at, updated_at)
+          VALUES
+            (?, ?, ?, 'credit', ?, '0', 'advance_payment', 'pending', 'advance_payment', ?, ?)`,
+          values: [row.business_id, row.user_id, row.advance_amount, `Advance payment for booking #${row.booking_id} from user #${row.user_id}`, createdAt, createdAt],
+        });
+        this.results.push({ table: 'wallet_transactions', field: `booking #${row.booking_id}`, status: '🔧 Missing TXN created' });
+      }
+      console.log(`✅ Created ${missing.length} missing wallet transaction(s) for advance bookings.`);
+
+      // Backfill from_user_id for existing advance payment wallet transactions that have user info in remark
+      const backfillResult: any = await this.sequelize!.query(`
+        UPDATE wallet_transactions wt
+        JOIN bookings b ON b.id = CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(wt.remark, 'booking #', -1), ' ', 1) AS UNSIGNED)
+        SET wt.from_user_id = b.user_id
+        WHERE wt.source_type = 'advance_payment'
+        AND wt.from_user_id IS NULL
+        AND wt.remark LIKE '%booking #%'
+      `, { type: QueryTypes.UPDATE });
+      if (backfillResult && backfillResult[0]?.affectedRows > 0) {
+        console.log(`✅ Backfilled from_user_id for ${backfillResult[0].affectedRows} existing advance payment transactions.`);
+        this.results.push({ table: 'wallet_transactions', field: 'from_user_id', status: `🔧 Backfilled ${backfillResult[0].affectedRows} rows` });
+      }
+
+      // Backfill from_user_id for existing order payment wallet transactions
+      const backfillOrderResult: any = await this.sequelize!.query(`
+        UPDATE wallet_transactions wt
+        JOIN orders o ON o.order_id = CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(wt.remark, 'Order ', -1), ' ', 1) AS CHAR)
+        SET wt.from_user_id = o.user_id
+        WHERE wt.source_type = 'order_payment'
+        AND wt.from_user_id IS NULL
+        AND wt.remark LIKE '%Order%'
+      `, { type: QueryTypes.UPDATE });
+      if (backfillOrderResult && backfillOrderResult[0]?.affectedRows > 0) {
+        console.log(`✅ Backfilled from_user_id for ${backfillOrderResult[0].affectedRows} existing order payment transactions.`);
+        this.results.push({ table: 'wallet_transactions', field: 'from_user_id (order)', status: `🔧 Backfilled ${backfillOrderResult[0].affectedRows} rows` });
+      }
+    } catch (err) {
+      console.error('❌ Failed to reconcile missing advance wallet transactions:', err);
+    }
+  }
+
   private async runSeeds() {
     // Capture existing log functions
     const originalLog = console.log;
@@ -179,6 +317,40 @@ class DbSyncService {
       // Restore logs
       console.log = originalLog;
       console.warn = originalWarn;
+    }
+  }
+
+  private async performDataMigration() {
+    if (!this.sequelize) return;
+    try {
+      // Check if there are any business users in the users table
+      const [businessUsersCountResult]: any = await this.sequelize.query(
+        "SELECT COUNT(*) as count FROM `users` WHERE `role_id` = 2"
+      );
+      const businessCount = businessUsersCountResult[0]?.count || 0;
+
+      if (businessCount > 0) {
+        console.log(`[Migration] Found ${businessCount} business users in users table. Migrating to businesses table...`);
+        
+        // Fetch all column names of users table
+        const columns = await this.getTableColumns('users');
+        const colsEscaped = columns.map(col => `\`${col}\``).join(', ');
+
+        // Insert into businesses table
+        await this.sequelize.query(
+          `INSERT IGNORE INTO \`businesses\` (${colsEscaped}) SELECT ${colsEscaped} FROM \`users\` WHERE \`role_id\` = 2`
+        );
+
+        // Delete from users table
+        await this.sequelize.query(
+          "DELETE FROM `users` WHERE `role_id` = 2"
+        );
+        
+        console.log(`[Migration] Successfully migrated and cleaned up users table.`);
+        this.results.push({ table: 'businesses', field: '-', status: `📦 Migrated ${businessCount} rows` });
+      }
+    } catch (err) {
+      console.error('❌ Data migration error:', err);
     }
   }
 

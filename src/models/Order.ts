@@ -1,6 +1,7 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/db";
 import User from "./User"; // users table
+import Business from "./Business";
 
 // --------------------
 // Types
@@ -122,7 +123,7 @@ Order.belongsTo(User, {
 });
 
 // Business
-Order.belongsTo(User, {
+Order.belongsTo(Business, {
   foreignKey: "business_id",
   as: "business",
 });

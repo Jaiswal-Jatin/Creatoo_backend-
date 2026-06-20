@@ -25,6 +25,8 @@ export interface UserAttrs {
   business_designation: string | null;
   gst_number: string | null;
   business_type_id: number | null;
+  business_category: 'restaurant' | 'salon' | 'turf' | null;
+  category_attributes: any;
   role_id: number | null;
   instagram_link: string | null;
   bio: string | null;
@@ -212,6 +214,8 @@ export class User
   public reverse_gateway_charges!: number | null;
   public min_threshold!: number | null;
   public device_id!: string | null;
+  public business_category!: 'restaurant' | 'salon' | 'turf' | null;
+  public category_attributes!: any;
 }
 
 User.init(
@@ -234,6 +238,12 @@ User.init(
     business_designation: { type: DataTypes.STRING, allowNull: true },
     gst_number: { type: DataTypes.STRING, allowNull: true },
     business_type_id: { type: DataTypes.INTEGER, allowNull: true },
+    business_category: {
+      type: DataTypes.ENUM('restaurant', 'salon', 'turf'),
+      allowNull: true,
+      defaultValue: null
+    },
+    category_attributes: { type: DataTypes.JSON, allowNull: true },
     role_id: { type: DataTypes.INTEGER, allowNull: true },
     instagram_link: { type: DataTypes.STRING, allowNull: true },
     bio: { type: DataTypes.TEXT, allowNull: true },

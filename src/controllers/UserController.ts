@@ -58,10 +58,11 @@ class UserController {
   // 🔍 POST /api/users/search  (Laravel: searchUser)
   async searchUser(req: Request, res: Response) {
     try {
-      const { role_id, per_page } = req.body as {
+      const { role_id, per_page, business_category } = req.body as {
         role_id?: number | string;
         per_page?: number | string;
         page?: number | string;
+        business_category?: string;
       };
 
       // Basic validation (like Laravel $request->validate)
@@ -105,6 +106,8 @@ class UserController {
           "pricing_range_text",
           "set_first_time_discount",
           "set_regular_discount",
+          "business_category",
+          "category_attributes",
         ];
       } else if (roleIdNum === 3) {
         // CREATOR
@@ -132,8 +135,14 @@ class UserController {
 
       const offset = (page - 1) * perPage;
 
-      const { rows, count } = await User.findAndCountAll({
-        where: { role_id: roleIdNum },
+      const where: any = { role_id: roleIdNum };
+      if (roleIdNum === 2 && business_category && ['restaurant', 'salon', 'turf'].includes(business_category.toLowerCase())) {
+        where.business_category = business_category.toLowerCase();
+      }
+
+      const targetModel = roleIdNum === 2 ? Business : User;
+      const { rows, count } = await targetModel.findAndCountAll({
+        where,
         attributes,
         limit: perPage,
         offset,
@@ -186,7 +195,7 @@ class UserController {
             );
             
             console.log(`Has visited before: ${hasVisitedBefore}`);
-            userData = this.applyAppropriateDiscount(userData, hasVisitedBefore);
+            userData = await this.applyAppropriateDiscount(userData, hasVisitedBefore);
             console.log(`Applied discount: ${userData.applicable_discount}, type: ${userData.discount_type}`);
           }
 
@@ -219,10 +228,11 @@ class UserController {
   // 🔍 POST /api/users/searchBusinessAndCreator (Laravel: searchBusinessAndCreator)
   async searchBusinessAndCreator(req: Request, res: Response) {
     try {
-      const { key, role_id, page } = req.body as {
+      const { key, role_id, page, business_category } = req.body as {
         key?: string;
         role_id?: number | string;
         page?: number | string;
+        business_category?: string;
       };
 
       const searchKey = key?.trim();
@@ -266,6 +276,8 @@ class UserController {
           "pricing_range_text",
           "set_first_time_discount",
           "set_regular_discount",
+          "business_category",
+          "category_attributes",
         ];
 
         where = {
@@ -276,6 +288,11 @@ class UserController {
             { business_fullname: { [Op.like]: `%${searchKey}%` } },
           ],
         };
+
+        // Apply category filter if provided
+        if (business_category && ['restaurant', 'salon', 'turf'].includes(business_category.toLowerCase())) {
+          where.business_category = business_category.toLowerCase();
+        }
       } else if (roleId === 3) {
         // CREATOR
         attributes = [
@@ -307,7 +324,8 @@ class UserController {
 
       const offset = (currentPage - 1) * perPage;
 
-      const { rows, count } = await User.findAndCountAll({
+      const targetModel = roleId === 2 ? Business : User;
+      const { rows, count } = await targetModel.findAndCountAll({
         where,
         attributes,
         limit: perPage,
@@ -334,12 +352,56 @@ class UserController {
           ? Number(ratingRow.avg_experience)
           : null;
 
-      // Attach avg_experience to each result
-      const updatedResults = rows.map((user) => {
+      // Attach avg_experience to each result and apply robust fallback/parsing
+      const updatedResults = await Promise.all(rows.map(async (user) => {
         const plain = user.toJSON() as any;
         plain.avg_experience = avgExperience;
+
+        // Fallback for search results
+        const hasNoCategoryAttrs = !plain.category_attributes || 
+                                    plain.category_attributes === 'null' || 
+                                    plain.category_attributes === '""' || 
+                                    plain.category_attributes === '' || 
+                                    (typeof plain.category_attributes === 'object' && Object.keys(plain.category_attributes).length === 0) ||
+                                    (typeof plain.category_attributes === 'string' && (plain.category_attributes.trim() === '{}' || plain.category_attributes.trim() === 'null'));
+
+        if (plain.role_id === 2 && (hasNoCategoryAttrs || !plain.business_category)) {
+          const businessMobile = plain.business_mobile || plain.mobile;
+          if (businessMobile) {
+            try {
+              const userFallback = await User.findOne({
+                where: {
+                  [Op.or]: [
+                    { mobile: businessMobile },
+                    { business_mobile: businessMobile }
+                  ]
+                },
+                attributes: ["business_category", "category_attributes"],
+              });
+              if (userFallback) {
+                const fb = userFallback.toJSON() as any;
+                
+                if (fb.category_attributes && typeof fb.category_attributes === 'string') {
+                  try {
+                    fb.category_attributes = JSON.parse(fb.category_attributes);
+                  } catch (_) {}
+                }
+                
+                if (!plain.category_attributes || hasNoCategoryAttrs) plain.category_attributes = fb.category_attributes;
+                if (!plain.business_category) plain.business_category = fb.business_category;
+              }
+            } catch (_) {}
+          }
+        }
+
+        if (plain.category_attributes && typeof plain.category_attributes === 'string') {
+          try {
+            plain.category_attributes = JSON.parse(plain.category_attributes);
+          } catch (_) {}
+        }
+
         return plain;
-      });
+      }));
 
       const lastPage = Math.ceil(count / perPage);
 
@@ -407,7 +469,10 @@ class UserController {
           "business_site_url",
           "business_image",
           "gst_number",
+          "business_category",
+          "category_attributes",
           "business_designation",
+          "upi_id",
           "is_active",
           "role_id",
           "time_from",
@@ -429,7 +494,7 @@ class UserController {
           "set_expiry",
         ];
 
-        userRecord = await User.findOne({
+        userRecord = await Business.findOne({
           where: { role_id: roleId, id: userId },
           attributes,
         });
@@ -481,6 +546,55 @@ class UserController {
       }
 
       let user = userRecord.toJSON() as any;
+
+      // Fallback: if Business table has null/empty category_attributes, try User table by mobile
+      const hasNoCategoryAttrs = !user.category_attributes || 
+                                  user.category_attributes === 'null' || 
+                                  user.category_attributes === '""' || 
+                                  user.category_attributes === '' || 
+                                  (typeof user.category_attributes === 'object' && Object.keys(user.category_attributes).length === 0) ||
+                                  (typeof user.category_attributes === 'string' && (user.category_attributes.trim() === '{}' || user.category_attributes.trim() === 'null'));
+
+      if (roleId === 2 && (hasNoCategoryAttrs || !user.business_category)) {
+        const businessMobile = user.business_mobile || user.mobile;
+        if (businessMobile) {
+          try {
+            const userFallback = await User.findOne({
+              where: {
+                [Op.or]: [
+                  { mobile: businessMobile },
+                  { business_mobile: businessMobile }
+                ]
+              },
+              attributes: ["business_category", "category_attributes", "menu_card_1", "menu_card_2", "menu_card_3", "menu_card_4", "menu_card_5"],
+            });
+            if (userFallback) {
+              const fb = userFallback.toJSON() as any;
+              
+              if (fb.category_attributes && typeof fb.category_attributes === 'string') {
+                try {
+                  fb.category_attributes = JSON.parse(fb.category_attributes);
+                } catch (_) {}
+              }
+              
+              if (!user.category_attributes || hasNoCategoryAttrs) user.category_attributes = fb.category_attributes;
+              if (!user.business_category) user.business_category = fb.business_category;
+              if (user.menu_card_1 == null) user.menu_card_1 = fb.menu_card_1;
+              if (user.menu_card_2 == null) user.menu_card_2 = fb.menu_card_2;
+              if (user.menu_card_3 == null) user.menu_card_3 = fb.menu_card_3;
+              if (user.menu_card_4 == null) user.menu_card_4 = fb.menu_card_4;
+              if (user.menu_card_5 == null) user.menu_card_5 = fb.menu_card_5;
+            }
+          } catch (_) {}
+        }
+      }
+
+      // Explicitly parse category_attributes if it is a JSON string
+      if (user.category_attributes && typeof user.category_attributes === 'string') {
+        try {
+          user.category_attributes = JSON.parse(user.category_attributes);
+        } catch (_) {}
+      }
 
       // Extra data for BUSINESS (role_id = 2)
       if (roleId === 2) {
@@ -596,12 +710,19 @@ class UserController {
           }
         )) as any[];
 
+        // Check if this business is a main business (has child associates)
+        const parentAssociateCount = await BusinessAssociate.count({
+          where: { parent_business_id: userId }
+        });
+        const isMainBusiness = parentAssociateCount > 0;
+
         user = {
           ...user,
           average_ratings: averageRatingsData,
           total_reviews: totalReviews,
           reviews,
-          associates: associatesRows
+          associates: associatesRows,
+          is_main_business: isMainBusiness
         };
       }
 
@@ -917,7 +1038,7 @@ class UserController {
    * @param hasVisitedBefore - Whether user has visited before
    * @returns Business object with appropriate discount applied
    */
-  private applyAppropriateDiscount(business: any, hasVisitedBefore: boolean): any {
+  private async applyAppropriateDiscount(business: any, hasVisitedBefore: boolean): Promise<any> {
     const businessData = business.toJSON ? business.toJSON() : { ...business };
     
     if (hasVisitedBefore) {
@@ -929,8 +1050,156 @@ class UserController {
       businessData.applicable_discount = businessData.set_first_time_discount;
       businessData.discount_type = 'first_time';
     }
+
+    // Fallback logic for category_attributes in lists/searches
+    const hasNoCategoryAttrs = !businessData.category_attributes || 
+                                businessData.category_attributes === 'null' || 
+                                businessData.category_attributes === '""' || 
+                                businessData.category_attributes === '' || 
+                                (typeof businessData.category_attributes === 'object' && Object.keys(businessData.category_attributes).length === 0) ||
+                                (typeof businessData.category_attributes === 'string' && (businessData.category_attributes.trim() === '{}' || businessData.category_attributes.trim() === 'null'));
+
+    if (businessData.role_id === 2 && (hasNoCategoryAttrs || !businessData.business_category)) {
+      const businessMobile = businessData.business_mobile || businessData.mobile;
+      if (businessMobile) {
+        try {
+          const userFallback = await User.findOne({
+            where: {
+              [Op.or]: [
+                { mobile: businessMobile },
+                { business_mobile: businessMobile }
+              ]
+            },
+            attributes: ["business_category", "category_attributes"],
+          });
+          if (userFallback) {
+            const fb = userFallback.toJSON() as any;
+            
+            if (fb.category_attributes && typeof fb.category_attributes === 'string') {
+              try {
+                fb.category_attributes = JSON.parse(fb.category_attributes);
+              } catch (_) {}
+            }
+            
+            if (!businessData.category_attributes || hasNoCategoryAttrs) businessData.category_attributes = fb.category_attributes;
+            if (!businessData.business_category) businessData.business_category = fb.business_category;
+          }
+        } catch (_) {}
+      }
+    }
+
+    // Explicitly parse category_attributes if it is a JSON string
+    if (businessData.category_attributes && typeof businessData.category_attributes === 'string') {
+      try {
+        businessData.category_attributes = JSON.parse(businessData.category_attributes);
+      } catch (_) {}
+    }
     
     return businessData;
+  }
+
+  // 🔍 POST /api/users/getBusinessByUpiId
+  async getBusinessByUpiId(req: Request, res: Response) {
+    try {
+      const { upi_id } = req.body as { upi_id?: string };
+
+      if (!upi_id || upi_id.trim() === "") {
+        return res.status(400).json({
+          status: false,
+          message: "UPI ID is required",
+        });
+      }
+
+      const upiIdTrimmed = upi_id.trim();
+
+      // Find the business matching the UPI ID
+      let business = await Business.findOne({
+        where: {
+          upi_id: sequelize.where(
+            sequelize.fn('lower', sequelize.col('upi_id')),
+            upiIdTrimmed.toLowerCase()
+          ),
+          role_id: 2
+        } as any,
+        attributes: ["id", "business_name", "business_image", "business_fullname"]
+      });
+
+      if (!business) {
+        // Fallback to User table if not found in Business table
+        const user = await User.findOne({
+          where: {
+            upi_id: sequelize.where(
+              sequelize.fn('lower', sequelize.col('upi_id')),
+              upiIdTrimmed.toLowerCase()
+            ),
+            role_id: 2
+          } as any,
+          attributes: ["id", "business_name", "business_image", "business_fullname"]
+        });
+        if (user) {
+          business = user as any;
+        }
+      }
+
+      // PHONEPE / GPAY FALLBACK:
+      // If exact match fails, try matching the prefix (e.g. 'jatin' from 'jatin@axl')
+      // Because PhonePe generates @ybl, @ibl, @axl for the same user.
+      if (!business && upiIdTrimmed.includes('@')) {
+        const baseIdentifier = upiIdTrimmed.split('@')[0].toLowerCase();
+        
+        // Search Business table for ANY upi_id that starts with 'baseIdentifier@'
+        const possibleBusinesses = await Business.findAll({
+           where: {
+             upi_id: {
+               [Op.like]: `${baseIdentifier}@%`
+             },
+             role_id: 2
+           } as any,
+           attributes: ["id", "business_name", "business_image", "business_fullname"]
+        });
+
+        if (possibleBusinesses.length === 1) {
+           business = possibleBusinesses[0] as any;
+        } else if (possibleBusinesses.length === 0) {
+           // Search User table
+           const possibleUsers = await User.findAll({
+             where: {
+               upi_id: {
+                 [Op.like]: `${baseIdentifier}@%`
+               },
+               role_id: 2
+             } as any,
+             attributes: ["id", "business_name", "business_image", "business_fullname"]
+           });
+           if (possibleUsers.length === 1) {
+             business = possibleUsers[0] as any;
+           }
+        }
+      }
+
+      if (!business) {
+        return res.status(404).json({
+          status: false,
+          message: `This UPI ID (${upi_id}) is not registered with any business. Please add it to your business profile.`,
+        });
+      }
+
+      return res.status(200).json({
+        status: true,
+        message: "Business found successfully",
+        data: {
+          businessId: business.id,
+          businessName: business.business_name || business.business_fullname || "",
+          businessImage: business.business_image || ""
+        }
+      });
+    } catch (e: any) {
+      console.error("getBusinessByUpiId error:", e);
+      return res.status(500).json({
+        status: false,
+        message: "Internal server error: " + e.message,
+      });
+    }
   }
 }
 

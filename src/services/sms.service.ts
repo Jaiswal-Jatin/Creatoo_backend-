@@ -18,21 +18,24 @@ export const sendOtp = async (mobile: string, otp: string): Promise<void> => {
   const msisdn = mobile.startsWith('91') ? mobile : `91${mobile}`;
   const payload = {
     template_id: env.MSG91_TEMPLATE_ID_LOGIN,
+    sender: env.MSG91_SENDER_ID,
     short_url: '0',
     recipients: [{ mobiles: msisdn, var1: otp }],
   };
 
   try {
-    const resp = await axios.post('https://control.msg91.com/api/v5/flow', payload, {
+    const resp = await axios.post('https://api.msg91.com/api/v5/flow', payload, {
       headers: { authkey: env.MSG91_AUTHKEY, 'Content-Type': 'application/json' },
       timeout: 15000,
     });
 
     if (resp.status < 200 || resp.status >= 300) {
-      console.error('MSG91 non-2xx:', resp.status, resp.statusText, resp.data);
+      console.error('MSG91 non-2xx:', resp.status, resp.statusText, JSON.stringify(resp.data));
+    } else {
+      console.log('MSG91 response:', JSON.stringify(resp.data));
     }
   } catch (err: any) {
-    console.error('MSG91 sendOtp failed:', err?.response?.data || err?.message);
-    // do not throw: we want endpoint to return 200 with debug OTP in dev; in prod you can throw
+    console.error('MSG91 sendOtp failed:', err?.response?.status, JSON.stringify(err?.response?.data || err?.message));
+    // do not throw: we want endpoint to return 200 with debug OTP in dev
   }
 };

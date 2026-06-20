@@ -19,11 +19,7 @@ class DatabaseManager {
       host: env.DB_HOST,
       port: env.DB_PORT,
       dialect: 'mysql',
-      logging: (msg) => {
-        if (env.NODE_ENV === 'development') {
-          console.log(`🗄️  [SQL] ${msg}`);
-        }
-      },
+      logging: false,
       timezone: '+05:30',
       dialectOptions: {
         dateStrings: true,

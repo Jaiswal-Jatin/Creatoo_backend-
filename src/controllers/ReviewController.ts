@@ -6,6 +6,7 @@ import Review from "../models/Review";
 import Order from "../models/Order"; // ✅ your Order model
 import CreatorPointsTransaction from "../models/CreatorPointsTransaction";
 import NewUserNotification from "../models/NewUserNotification";
+import Business from "../models/Business";
 import sequelize from "../db/sequelize";
 // import { sendPushNotification } from "../services/notification.service"; // OLD: Using legacy FCM HTTP API
 import { sendPushNotification } from "../services/sendPushNotification"; // NEW: Using Firebase Admin SDK
@@ -44,20 +45,15 @@ class ReviewController {
             if (!user_id) errors.user_id = ["user_id is required"];
             if (!business_id) errors.business_id = ["business_id is required"];
             if (!experience) errors.experience = ["experience is required"];
-            if (!expectation) errors.expectation = ["expectation is required"];
-            if (!recommend) errors.recommend = ["recommend is required"];
-            if (!fair_money) errors.fair_money = ["fair_money is required"];
-            if (!interaction) errors.interaction = ["interaction is required"];
             if (!role_id) errors.role_id = ["role_id is required"];
-            if (!order_id) errors.order_id = ["order_id is required"];
 
             const userIdNum = Number(user_id);
             const businessIdNum = Number(business_id);
             const experienceNum = Number(experience);
-            const expectationNum = Number(expectation);
-            const recommendNum = Number(recommend);
-            const fairMoneyNum = Number(fair_money);
-            const interactionNum = Number(interaction);
+            const expectationNum = Number(expectation || 0);
+            const recommendNum = Number(recommend || 0);
+            const fairMoneyNum = Number(fair_money || 0);
+            const interactionNum = Number(interaction || 0);
             const roleIdNum = Number(role_id);
 
             if (Number.isNaN(userIdNum)) {
@@ -72,10 +68,6 @@ class ReviewController {
 
             [
                 ["experience", experienceNum],
-                ["expectation", expectationNum],
-                ["recommend", recommendNum],
-                ["fair_money", fairMoneyNum],
-                ["interaction", interactionNum],
             ].forEach(([field, value]) => {
                 if (Number.isNaN(value)) {
                     errors[field as string] = [
@@ -110,24 +102,21 @@ class ReviewController {
             }
             const receiptName = user.name ?? "Unknown User";
 
-            const business = await User.findByPk(businessIdNum);
+            const business = await Business.findByPk(businessIdNum) || await User.findByPk(businessIdNum);
             if (!business) {
                 return res.status(422).json({
                     status: false,
                     message: "Business not found for the given business_id",
                 });
             }
-            const businessName = business.business_name ?? "Unknown Business";
+            const businessName = (business as any).business_name ?? "Unknown Business";
 
             // ---------- Fetch Order by order_id (string column) ----------
-            // Laravel: Order::where('order_id', $order_id)->first();
-            const order = await Order.findOne({
-                where: { order_id: order_id as string },
-            });
-            if (!order) {
-                return res.status(422).json({
-                    status: false,
-                    message: "Order not found for the given order_id",
+            const hasOrderId = order_id && order_id.trim() !== "";
+            let order = null;
+            if (hasOrderId) {
+                order = await Order.findOne({
+                    where: { order_id: order_id as string },
                 });
             }
 
@@ -135,13 +124,13 @@ class ReviewController {
             let is_redeemed: string | null = null;
             if (roleIdNum === 3) {
                 is_redeemed = "CreatorView";
-            } else if (roleIdNum === 2) {
+            } else if (roleIdNum === 2 || roleIdNum === 4) {
                 is_redeemed = "BusinessView";
             }
 
             // ---------- Loyalty & expiry ----------
             const days = business.set_expiry ?? 30;
-            const loyaltyPointsEarned = order.loyalty_points_earned ?? 0;
+            const loyaltyPointsEarned = order ? (order.loyalty_points_earned ?? 0) : 0;
 
             // ---------- Create Review ----------
             const review = await Review.create({
@@ -153,72 +142,37 @@ class ReviewController {
                 fair_money: fairMoneyNum,
                 interaction: interactionNum,
                 review_text: review_text || null,
-                order_id: order_id, // string order code, same as Laravel
+                order_id: hasOrderId ? order_id : null, // string order code, same as Laravel
             } as any);
 
             // ---------- CreatorPointsTransaction ----------
             const transactionData = {
                 user_id: userIdNum,
                 business_id: businessIdNum,
-                order_id: order_id, // string (same as Laravel)
+                order_id: hasOrderId ? order_id : null, // string (same as Laravel)
                 points: loyaltyPointsEarned,                  // ✅ required
                 expiry_date: new Date(Date.now() + days * 24 * 60 * 60 * 1000),
                 credit_debit_remaining_status: "credit",
                 business_name: businessName ?? null,
-                total_bill: order.original_bill_amount
-                    ? Number(order.original_bill_amount)
-                    : null,
-                settlement_amount: order.settlement_amount
-                    ? Number(order.settlement_amount)
-                    : null,
-                discount_percentage: order.discount_percentage
-                    ? Number(order.discount_percentage)
-                    : null,
-                final_bill: order.final_bill_amount
-                    ? Number(order.final_bill_amount)
-                    : null,
+                total_bill: order ? (order.original_bill_amount ? Number(order.original_bill_amount) : null) : null,
+                settlement_amount: order ? (order.settlement_amount ? Number(order.settlement_amount) : null) : null,
+                discount_percentage: order ? (order.discount_percentage ? Number(order.discount_percentage) : null) : null,
+                final_bill: order ? (order.final_bill_amount ? Number(order.final_bill_amount) : null) : null,
                 receipt_name: receiptName,
                 remaining_points: loyaltyPointsEarned,        // ✅ required, non-null
-                reverse_gateway_charges: order.reverse_gateway_charges
-                    ? Number(order.reverse_gateway_charges)
-                    : null,
+                reverse_gateway_charges: order ? (order.reverse_gateway_charges ? Number(order.reverse_gateway_charges) : null) : null,
             };
 
-            await CreatorPointsTransaction.create(transactionData as any);
+            if (loyaltyPointsEarned > 0) {
+                await CreatorPointsTransaction.create(transactionData as any);
+            }
 
             // ---------- Update Order review_status + loyalty_points_earned ----------
-            await order.update({
-                loyalty_points_earned: loyaltyPointsEarned,
-                review_status: "Completed",
-            } as any);
-
-            // ---------- Notification ----------
-            const notification_subject = "🎉 You’ve Earned Points!";
-            const notification_text = `Hey ${receiptName}, you just scored ${loyaltyPointsEarned} Creatoo Points. Keep earning and stack them up for exciting rewards. Saving up never felt this good!`;
-
-            const notificationRow = await NewUserNotification.create({
-                user_id: userIdNum,
-                order_id: order_id,
-                notification_subject: "Points Earned!",
-                notification_text,
-                is_redeemed,
-                business_id: businessIdNum,
-            } as any);
-
-            const rememberTokenRow = await User.findByPk(userIdNum, {
-                attributes: ["remember_token"],
-            });
-
-            let notificationPayload: { title: string; description: string } | null =
-                null;
-
-            const token = rememberTokenRow?.remember_token;
-            if (token) {
-                notificationPayload = {
-                    title: notification_subject,
-                    description: notification_text,
-                };
-                await sendPushNotification(notificationPayload, [token]);
+            if (order) {
+                await order.update({
+                    loyalty_points_earned: loyaltyPointsEarned,
+                    review_status: "Completed",
+                } as any);
             }
 
             return res.status(200).json({
@@ -226,8 +180,6 @@ class ReviewController {
                 message: `Thanks for your feedback! You’ve earned ${loyaltyPointsEarned} Creatoo Points. Keep sharing your thoughts!`,
                 data: review,
                 points_earnerd: loyaltyPointsEarned,
-                notification: notificationPayload,
-                notification_row: notificationRow,
             });
         } catch (e: any) {
             console.error("reviewSubmit error:", e);
@@ -277,15 +229,16 @@ class ReviewController {
         SELECT
           reviews.user_id,
           reviews.order_id,
-          COALESCE(business_user.business_name, users.business_name) AS business_name,
-          COALESCE(business_user.business_image, users.business_image) AS business_image,
+          COALESCE(businesses.business_name, business_user.business_name, users.business_name) AS business_name,
+          COALESCE(businesses.business_image, business_user.business_image, users.business_image) AS business_image,
           reviews.experience,
           reviews.review_text,
           reviews.created_at,
-          business_user.id AS business_id
+          COALESCE(businesses.id, business_user.id) AS business_id
         FROM reviews
         LEFT JOIN orders ON reviews.order_id = orders.id
         LEFT JOIN users AS users ON orders.business_id = users.id
+        LEFT JOIN businesses ON reviews.business_id = businesses.id
         LEFT JOIN users AS business_user ON reviews.business_id = business_user.id
         WHERE reviews.user_id = :userId
         ORDER BY reviews.created_at DESC
@@ -336,6 +289,82 @@ class ReviewController {
         }
     }
 
+    // POST /api/review/business-reviews
+    // Business fetches all reviews received for their business
+    async getBusinessReviews(req: Request, res: Response) {
+        try {
+            const { business_id } = req.body as { business_id?: number | string };
+            const authUser = (req as any).user;
+            const targetBusinessId = business_id ? Number(business_id) : authUser?.id;
+
+            if (!targetBusinessId) {
+                return res.status(422).json({ status: false, message: "Business ID is required." });
+            }
+
+            const rows = (await sequelize.query(
+                `
+        SELECT
+          reviews.id,
+          reviews.user_id,
+          reviews.business_id,
+          reviews.experience,
+          reviews.expectation,
+          reviews.recommend,
+          reviews.fair_money,
+          reviews.interaction,
+          reviews.review_text,
+          reviews.created_at,
+          u.name AS user_name,
+          u.mobile AS user_mobile,
+          u.user_image,
+          COALESCE(b.business_name, bu.business_name) AS business_name
+        FROM reviews
+        LEFT JOIN users u ON reviews.user_id = u.id
+        LEFT JOIN businesses b ON reviews.business_id = b.id
+        LEFT JOIN users bu ON reviews.business_id = bu.id
+        WHERE reviews.business_id = :businessId
+        ORDER BY reviews.created_at DESC
+      `,
+                {
+                    replacements: { businessId: targetBusinessId },
+                    type: QueryTypes.SELECT,
+                }
+            )) as any[];
+
+            const now = Date.now();
+            const data = rows.map((r: any) => ({
+                id: r.id,
+                user_id: r.user_id,
+                business_id: r.business_id,
+                user_name: r.user_name || "Unknown",
+                user_mobile: r.user_mobile || "",
+                user_image: r.user_image || null,
+                business_name: r.business_name || "Unknown",
+                experience: r.experience,
+                expectation: r.expectation,
+                recommend: r.recommend,
+                fair_money: r.fair_money,
+                interaction: r.interaction,
+                review_text: r.review_text,
+                days_ago: Math.floor((now - new Date(r.created_at).getTime()) / (1000 * 60 * 60 * 24)),
+                created_at: r.created_at,
+            }));
+
+            return res.status(200).json({
+                status: true,
+                message: "Business reviews fetched successfully.",
+                total: data.length,
+                data,
+            });
+        } catch (e: any) {
+            console.error("getBusinessReviews error:", e);
+            return res.status(500).json({
+                status: false,
+                message: "Error fetching business reviews: " + (e?.message || "Unknown error"),
+            });
+        }
+    }
+
     // skipReview stays same as before – no change needed for Order model
     async skipReview(req: Request, res: Response) {
         try {
@@ -372,7 +401,7 @@ class ReviewController {
 
             const notification_text =
                 "You skipped the feedback survey. Complete it now to earn your reward Points!";
-            const isRedeemedValue = is_redeemed ?? 0;
+            const isRedeemedValue = is_redeemed ?? "0";
 
             const notificationRow = await NewUserNotification.create({
                 user_id: userIdNum,

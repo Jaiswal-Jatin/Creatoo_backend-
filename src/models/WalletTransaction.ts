@@ -11,9 +11,25 @@ class WalletTransaction extends Model {
   public is_withdraw_request!: string | null;
   public via!: string | null;
   public receipt_image!: string | null;
+  public settlement_status!: string;
+  public settled_at!: Date | null;
+  public settlement_id!: number | null;
+  public source_type!: string | null;
+  public from_user_id!: number | null;
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
 }
+
+// Override toJSON to convert null strings to empty strings for Flutter null-safety compatibility
+WalletTransaction.prototype.toJSON = function (this: any) {
+  const obj: any = this.get();
+  const safe: any = {};
+  const stringFields = ['remark', 'via', 'receipt_image', 'is_withdraw_request', 'source_type', 'settlement_status', 'credit_debit'];
+  for (const [key, val] of Object.entries(obj)) {
+    safe[key] = stringFields.includes(key) && (val === null || val === undefined) ? '' : val;
+  }
+  return safe;
+};
 
 WalletTransaction.init(
   {
@@ -48,6 +64,26 @@ WalletTransaction.init(
     },
     receipt_image: {
       type: DataTypes.STRING,
+      allowNull: true,
+    },
+    settlement_status: {
+      type: DataTypes.ENUM('pending', 'settled'),
+      defaultValue: 'pending',
+    },
+    settled_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    settlement_id: {
+      type: DataTypes.INTEGER.UNSIGNED,
+      allowNull: true,
+    },
+    source_type: {
+      type: DataTypes.ENUM('order_payment', 'advance_payment', 'manual_payment'),
+      allowNull: true,
+    },
+    from_user_id: {
+      type: DataTypes.INTEGER.UNSIGNED,
       allowNull: true,
     },
   },

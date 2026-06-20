@@ -11,11 +11,13 @@ import { Request, Response } from "express";
 import { Op, QueryTypes } from "sequelize";
 import axios from "axios";
 import User from "../models/User";
+import Business from "../models/Business";
 import WalletTransaction from "../models/WalletTransaction";
 import sequelize from "../db/sequelize";
 import Post from "../models/Post";
 import TemporaryOrder from "../models/TemporaryOrder";
 import Order from "../models/Order";
+import ManualPayment from "../models/ManualPayment";
 
 class WalletTransactionController {
 
@@ -664,7 +666,11 @@ class WalletTransactionController {
   async businessWalletTransaction(req: Request, res: Response) {
     try {
       const userId = (req as any).user?.id;
-      const { store_orders_in_wallet = false } = req.body as { store_orders_in_wallet?: boolean };
+      const { store_orders_in_wallet = false, from_date, to_date } = req.body as {
+        store_orders_in_wallet?: boolean;
+        from_date?: string;
+        to_date?: string;
+      };
 
       if (!userId) {
         return res.status(401).json({
@@ -674,9 +680,9 @@ class WalletTransactionController {
         });
       }
 
-      const user = await User.findByPk(userId);
+      const user = await Business.findByPk(userId);
 
-      if (!user || user.role_id !== 2) {
+      if (!user) {
         return res.status(403).json({
           status: false,
           message: "Access allowed only for business users",
@@ -684,30 +690,35 @@ class WalletTransactionController {
         });
       }
 
-      // Get only wallet transactions for this business user
-      const walletTransactions = await WalletTransaction.findAll({
+      // Fetch ALL wallet transactions for this business user
+      const allWalletTxns = await WalletTransaction.findAll({
         where: { user_id: userId },
         order: [["created_at", "DESC"]],
       });
 
-      // Process wallet transactions with settlement amount calculations
-      const walletTransactionsData = await Promise.all(walletTransactions.map(async (wt: any) => {
+      // Also fetch CONFIRMED manual payments for this business
+      const manualPayments = await ManualPayment.findAll({
+        where: {
+          business_id: userId,
+          status: 'CONFIRMED',
+        },
+        include: [{ model: User, as: 'user', attributes: ['id', 'name'] }],
+        order: [["created_at", "DESC"]],
+      });
+
+      // Process ALL transactions with settlement calculations
+      const processTransaction = async (wt: any) => {
         const json: any = wt.toJSON();
-        
-        // Check if this wallet transaction has a related order by parsing the remark
         let orderSettlementAmount = 0;
         if (json.remark && json.remark.includes("Order")) {
-          // Extract order ID from remark like "Payment received for Order order_S81XbpDECzUIgC"
           const orderMatch = json.remark.match(/Order\s+(\w+)/);
           if (orderMatch) {
             const orderId = orderMatch[1];
             try {
-              // Look up the related order
               const relatedOrder = await Order.findOne({
                 where: { order_id: orderId },
                 attributes: ['settlement_amount', 'original_bill_amount', 'platform_fee', 'reverse_gateway_charges', 'final_bill_amount']
               });
-              
               if (relatedOrder) {
                 const orderJson: any = relatedOrder.toJSON();
                 const settlementAmount = Number(orderJson.settlement_amount) || 0;
@@ -715,8 +726,6 @@ class WalletTransactionController {
                 const reverseGatewayCharges = Number(orderJson.reverse_gateway_charges) || 0;
                 const finalBillAmount = Number(orderJson.final_bill_amount) || 0;
                 const netAmountReceived = finalBillAmount - (finalBillAmount * reverseGatewayCharges / 100) - platformFee;
-                
-                // Use settlement_amount if it exists, otherwise calculated net amount
                 orderSettlementAmount = settlementAmount > 0 ? settlementAmount : netAmountReceived;
               }
             } catch (error) {
@@ -724,40 +733,70 @@ class WalletTransactionController {
             }
           }
         }
-        
         return {
           ...json,
-          created_at_formatted: (() => {
-            try {
-              // Handle both createdAt and created_at field names
-              const rawDate = json.createdAt || json.created_at;
-              const date = new Date(rawDate);
-              return isNaN(date.getTime()) ? 'Invalid Date' : date.toISOString().replace("T", " ").slice(0, 19);
-            } catch (error) {
-              return 'Invalid Date';
-            }
-          })(),
           source: "wallet_table",
           settlementAmount: orderSettlementAmount || json.settlement_amount || json.amount || 0,
         };
-      }));
+      };
 
-      const allTransactions = walletTransactionsData
+      // Process manual payments as wallet-like entries
+      const processManualPayment = (mp: any) => {
+        const json: any = mp.toJSON();
+        return {
+          id: json.id,
+          user_id: json.user_id,
+          amount: json.final_amount,
+          credit_debit: 'credit',
+          remark: `Payment from ${json.user?.name || 'Customer'}`,
+          settlementAmount: Number(json.final_amount) || 0,
+          created_at: json.created_at,
+          source: "upi_payment",
+          totalBill: json.bill_amount?.toString(),
+          receivedFrom: json.user?.name || 'Customer',
+          referenceNumber: `PAY-${json.id}`,
+          discountPercentage: json.discount_percentage,
+        };
+      };
+
+      const allProcessed = await Promise.all(allWalletTxns.map(processTransaction));
+      const manualProcessed = manualPayments.map(processManualPayment);
+
+      // Merge wallet transactions + UPI manual payments
+      const merged = [...allProcessed, ...manualProcessed];
+      const lifetimeEarnings = merged.reduce((sum: number, item: any) => sum + Number(item.settlementAmount || 0), 0);
+
+      // Filter by date range if provided
+      let filteredProcessed = merged;
+      if (from_date && to_date) {
+        const fromDate = new Date(from_date);
+        const toDate = new Date(to_date);
+        toDate.setHours(23, 59, 59, 999);
+        filteredProcessed = merged.filter((t: any) => {
+          const tDate = new Date(t.created_at);
+          return tDate >= fromDate && tDate <= toDate;
+        });
+      }
+
+      const allTransactions = filteredProcessed
         .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         .map((transaction: any, index: number) => ({
           ...transaction,
-          display_id: index + 1, // For frontend display purposes
+          display_id: index + 1,
         }));
 
-      // Calculate summary statistics
+      const totalEarnings = allTransactions
+        .reduce((sum: number, item: any) => sum + Number(item.settlementAmount || 0), 0);
+
       const summary = {
         total_transactions: allTransactions.length,
         total_amount_received: allTransactions
           .filter((t: any) => t.credit_debit === "credit")
           .reduce((sum: number, item: any) => sum + Number(item.amount || 0), 0),
-        wallet_transactions_count: walletTransactions.length,
-        order_transactions_count: 0, // Since we're only showing wallet transactions
+        wallet_transactions_count: filteredProcessed.length,
+        order_transactions_count: 0,
         newly_synced_orders: 0,
+        total_earnings: totalEarnings,
       };
 
       return res.status(200).json({
@@ -765,9 +804,10 @@ class WalletTransactionController {
         message: "Data found successfully",
         data: allTransactions,
         summary,
+        lifetime_earnings: lifetimeEarnings,
         meta: {
           store_orders_in_wallet,
-          existing_wallet_transactions: walletTransactions.length,
+          existing_wallet_transactions: allWalletTxns.length,
           orders_found: 0,
           new_wallet_transactions_created: 0,
         },
@@ -854,43 +894,27 @@ class WalletTransactionController {
       let searchCondition = "";
 
       if (search && String(search).trim() !== "") {
-
         searchCondition =
-
-          " AND (o.order_id LIKE :search OR u.business_name LIKE :search)";
-
+          " AND (o.order_id LIKE :search OR COALESCE(b.business_name, u.business_name) LIKE :search)";
         replacements.search = `%${search}%`;
-
       }
 
-
-
       const sql = `
-
         SELECT
-
-          u.business_name AS paid_to,
-
+          COALESCE(b.business_name, u.business_name) AS paid_to,
+          COALESCE(b.business_image, u.business_image) AS business_image,
           o.original_bill_amount AS bill_amount,
-
           o.final_bill_amount,
-
+          o.discount_percentage,
           o.created_at,
-
           o.id,
-
           o.order_id
-
         FROM orders o
-
-        INNER JOIN users u ON o.business_id = u.id
-
+        LEFT JOIN businesses b ON o.business_id = b.id
+        LEFT JOIN users u ON o.business_id = u.id
         WHERE o.user_id = :userId
-
         ${searchCondition}
-
         ORDER BY o.created_at DESC
-
       `;
 
 

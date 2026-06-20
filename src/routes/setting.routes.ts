@@ -60,4 +60,39 @@ router.post(
   (req, res) => SettingController.getBusinessSettingDetails(req, res)
 );
 
+/**
+ * Route: GET /api/setting/advance-payment
+ * Role: Admin
+ * Description: Get advance payment settings (platform fee & GST).
+ */
+router.get(
+  "/advance-payment",
+  authJwt,
+  adminOnly,
+  (req, res) => SettingController.getAdvancePaymentSettings(req, res)
+);
+
+/**
+ * Route: PUT /api/setting/advance-payment
+ * Role: Admin
+ * Description: Update advance payment settings (platform fee & GST).
+ */
+router.put(
+  "/advance-payment",
+  authJwt,
+  adminOnly,
+  (req, res) => SettingController.updateAdvancePaymentSettings(req, res)
+);
+
+/**
+ * Route: GET /api/setting/advance-payment/public
+ * Role: Public (authenticated user)
+ * Description: Get advance payment settings for mobile app display.
+ */
+router.get(
+  "/advance-payment/public",
+  authJwt,
+  (req, res) => SettingController.getAdvancePaymentSettings(req, res)
+);
+
 export default router;

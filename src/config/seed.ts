@@ -47,6 +47,7 @@ class SeedManager {
       await this.seedSettings();
       await this.seedBusinessTypes();
       await this.seedDefaultPlans();
+      await this.seedTurfOptions();
       
       console.log(`✅ Seed operations completed. ${this.changes.length} changes made.`);
       return {
@@ -99,8 +100,8 @@ class SeedManager {
       
       if (count === 0) {
         await this.sequelize.query(`
-          INSERT INTO settings (cgst_percent, sgst_percent, igst_percent, platform_fee_percent, gateway_charges, reverse_gateway_charges, creatoo_points, created_at, updated_at)
-          VALUES (9.0, 9.0, 18.0, 2.0, 2.0, 2.0, 1.0, NOW(), NOW())
+          INSERT INTO settings (cgst_percent, sgst_percent, igst_percent, platform_fee_percent, gateway_charges, reverse_gateway_charges, creatoo_points, advance_platform_fee, advance_gst_percent, created_at, updated_at)
+          VALUES (9.0, 9.0, 18.0, 2.0, 2.0, 2.0, 1.0, 10.0, 18.0, NOW(), NOW())
         `);
         
         this.changes.push('🌱 Default settings created');
@@ -245,6 +246,69 @@ class SeedManager {
       }
     } catch (error) {
       console.error('❌ Failed to seed plans:', error);
+      throw error;
+    }
+  }
+
+  private async seedTurfOptions(): Promise<void> {
+    try {
+      const tableExists = await this.checkTableExists('turf_options');
+      if (!tableExists) {
+        console.log('⚠️  Turf options table does not exist, skipping turf options seed');
+        return;
+      }
+
+      const options: { type: string; value: string; sort_order: number }[] = [
+        // Court sizes
+        { type: 'court_size', value: '5v5', sort_order: 1 },
+        { type: 'court_size', value: '7v7', sort_order: 2 },
+        { type: 'court_size', value: '9v9', sort_order: 3 },
+        { type: 'court_size', value: '11v11', sort_order: 4 },
+        // Ground types
+        { type: 'ground_type', value: 'Artificial Grass', sort_order: 1 },
+        { type: 'ground_type', value: 'Natural Grass', sort_order: 2 },
+        { type: 'ground_type', value: 'Clay Court', sort_order: 3 },
+        { type: 'ground_type', value: 'Wooden Floor', sort_order: 4 },
+        // Sports
+        { type: 'sport', value: 'Football', sort_order: 1 },
+        { type: 'sport', value: 'Cricket', sort_order: 2 },
+        { type: 'sport', value: 'Badminton', sort_order: 3 },
+        { type: 'sport', value: 'Tennis', sort_order: 4 },
+        { type: 'sport', value: 'Basketball', sort_order: 5 },
+        { type: 'sport', value: 'Volleyball', sort_order: 6 },
+        { type: 'sport', value: 'Pickle Ball', sort_order: 7 },
+        // Amenities
+        { type: 'amenity', value: 'Parking', sort_order: 1 },
+        { type: 'amenity', value: 'Changing Rooms', sort_order: 2 },
+        { type: 'amenity', value: 'Floodlights', sort_order: 3 },
+        { type: 'amenity', value: 'Water', sort_order: 4 },
+        { type: 'amenity', value: 'Cafeteria', sort_order: 5 },
+        { type: 'amenity', value: 'Equipment Rental', sort_order: 6 },
+      ];
+
+      let addedCount = 0;
+      for (const opt of options) {
+        const exists = await this.recordExists('turf_options', 'type = :type AND value = :value', {
+          type: opt.type,
+          value: opt.value
+        });
+        if (!exists) {
+          await this.sequelize.query(`
+            INSERT INTO turf_options (type, value, sort_order, created_at, updated_at)
+            VALUES (:type, :value, :sort_order, NOW(), NOW())
+          `, { replacements: opt });
+          addedCount++;
+        }
+      }
+
+      if (addedCount > 0) {
+        this.changes.push(`🌱 ${addedCount} turf options created`);
+        console.log(`🌱 ${addedCount} turf options created`);
+      } else {
+        console.log('📋 Turf options already exist, skipping');
+      }
+    } catch (error) {
+      console.error('❌ Failed to seed turf options:', error);
       throw error;
     }
   }

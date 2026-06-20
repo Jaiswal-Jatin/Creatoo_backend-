@@ -10,6 +10,8 @@ class Setting extends Model {
   public gateway_charges!: number;
   public reverse_gateway_charges!: number;
   public creatoo_points!: number;
+  public advance_platform_fee!: number;
+  public advance_gst_percent!: number;
 }
 
 Setting.init(
@@ -26,6 +28,14 @@ Setting.init(
     gateway_charges: DataTypes.FLOAT,
     reverse_gateway_charges: DataTypes.FLOAT,
     creatoo_points: DataTypes.FLOAT,
+    advance_platform_fee: {
+      type: DataTypes.DECIMAL(10, 2),
+      defaultValue: 10.00,
+    },
+    advance_gst_percent: {
+      type: DataTypes.DECIMAL(5, 2),
+      defaultValue: 18.00,
+    },
   },
   {
     sequelize,

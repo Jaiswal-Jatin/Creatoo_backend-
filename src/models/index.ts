@@ -31,6 +31,10 @@ import './Visit';
 import './WalletTransaction';
 import './WithdrawRequest';
 import './invoice';
+import './ManualPayment';
+import './TurfOption';
+import './Booking';
+import './Settlement';
 
 // Ensure all models are properly associated with this sequelize instance
 const models = sequelize.models;

@@ -10,6 +10,7 @@
 import { Request, Response } from "express";
 import { Op, fn, col, QueryTypes } from "sequelize";
 import User from "../models/User";
+import Business from "../models/Business";
 import Visit from "../models/Visit";
 import Card from "../models/Card";
 import CreatorPointsTransaction from "../models/CreatorPointsTransaction";
@@ -268,8 +269,6 @@ const BusinessController = {
       const {
         set_first_time_discount,
         set_regular_discount,
-        min_order,
-        set_expiry,
         platform_fee_rupees,
         gateway_charges,
         reverse_gateway_charges,
@@ -279,8 +278,6 @@ const BusinessController = {
 
       const firstNum = Number(set_first_time_discount);
       const regularNum = Number(set_regular_discount);
-      const minOrderNum = Number(min_order);
-      const expiryNum = Number(set_expiry);
       const platformFeeRupeesNum = platform_fee_rupees !== undefined ? Number(platform_fee_rupees) : undefined;
       const gatewayChargesNum = gateway_charges !== undefined ? Number(gateway_charges) : undefined;
       const reverseGatewayChargesNum = reverse_gateway_charges !== undefined ? Number(reverse_gateway_charges) : undefined;
@@ -290,12 +287,6 @@ const BusinessController = {
 
       if (Number.isNaN(regularNum) || regularNum < 0 || regularNum > 100)
         errors.set_regular_discount = ["Must be between 0 and 100"];
-
-      if (Number.isNaN(minOrderNum) || minOrderNum < 0)
-        errors.min_order = ["Must be at least 0"];
-
-      if (Number.isNaN(expiryNum) || expiryNum < 1)
-        errors.set_expiry = ["Must be at least 1"];
 
       // Optional fields - only validate if provided
       if (platformFeeRupeesNum !== undefined && (Number.isNaN(platformFeeRupeesNum) || platformFeeRupeesNum < 0))
@@ -311,7 +302,7 @@ const BusinessController = {
         return res.status(422).json({ status: false, errors });
       }
 
-      const user: any = await User.findByPk(businessId);
+      const user: any = await Business.findByPk(businessId);
 
       if (!user) {
         return res.status(404).json({
@@ -322,9 +313,7 @@ const BusinessController = {
 
       user.set_first_time_discount = firstNum;
       user.set_regular_discount = regularNum;
-      user.min_order = minOrderNum;
-      user.set_expiry = expiryNum;
-      
+
       // Set dynamic charges if provided (only allow admins to modify these)
       if (platform_fee_rupees !== undefined) user.platform_fee_rupees = platformFeeRupeesNum;
       if (gateway_charges !== undefined) user.gateway_charges = gatewayChargesNum;
@@ -368,7 +357,7 @@ const BusinessController = {
         });
       }
 
-      const user: any = await User.findByPk(businessId);
+      const user: any = await Business.findByPk(businessId);
       if (!user) {
         return res.status(404).json({
           status: false,
@@ -422,8 +411,7 @@ const BusinessController = {
       console.error(err);
       return res.status(500).json({
         status: false,
-        message:
-          "Failed to update business description: " + (err.message || "Unknown"),
+        message: "Failed to update business description: " + (err.message || "Unknown"),
       });
     }
   },
@@ -434,6 +422,7 @@ const BusinessController = {
   async getBusinessList(req: Request, res: Response) {
     try {
       const searchKey = (req.body.search_key || "").trim();
+      const businessCategory = (req.body.business_category || "").trim();
 
       if (searchKey.length < 3) {
         return res.status(200).json({
@@ -443,12 +432,17 @@ const BusinessController = {
         });
       }
 
+      const whereClause: any = {
+        role_id: 2,
+        business_name: { [Op.like]: `%${searchKey}%` },
+      };
+      if (businessCategory) {
+        whereClause.business_category = businessCategory;
+      }
+
       const users = await User.findAll({
-        where: {
-          role_id: 2,
-          business_name: { [Op.like]: `%${searchKey}%` },
-        },
-        attributes: ["id", "business_name"],
+        where: whereClause,
+        attributes: ["id", "business_name", "business_category"],
       });
 
       return res.status(200).json({

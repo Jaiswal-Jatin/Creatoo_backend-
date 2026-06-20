@@ -221,6 +221,59 @@ class SettingController {
     }
   }
 
+  // =====================================================
+  // ADMIN: GET Advance Payment Settings
+  // GET /api/setting/advance-payment
+  // =====================================================
+  async getAdvancePaymentSettings(req: Request, res: Response) {
+    try {
+      let setting = await Setting.findByPk(1);
+      if (!setting) {
+        setting = await Setting.create({ id: 1 } as any);
+      }
+      return res.json({
+        status: true,
+        data: {
+          advance_platform_fee: setting.advance_platform_fee ?? 10,
+          advance_gst_percent: setting.advance_gst_percent ?? 18,
+        },
+      });
+    } catch (error) {
+      return res.status(500).json({ status: false, message: 'Server error', error });
+    }
+  }
+
+  // =====================================================
+  // ADMIN: UPDATE Advance Payment Settings
+  // PUT /api/setting/advance-payment
+  // =====================================================
+  async updateAdvancePaymentSettings(req: Request, res: Response) {
+    try {
+      const { advance_platform_fee, advance_gst_percent } = req.body;
+      let setting = await Setting.findByPk(1);
+      if (!setting) {
+        setting = await Setting.create({ id: 1 } as any);
+      }
+      if (advance_platform_fee !== undefined) {
+        setting.advance_platform_fee = Number(advance_platform_fee);
+      }
+      if (advance_gst_percent !== undefined) {
+        setting.advance_gst_percent = Number(advance_gst_percent);
+      }
+      await setting.save();
+      return res.json({
+        status: true,
+        message: 'Advance payment settings updated.',
+        data: {
+          advance_platform_fee: setting.advance_platform_fee,
+          advance_gst_percent: setting.advance_gst_percent,
+        },
+      });
+    } catch (error) {
+      return res.status(500).json({ status: false, message: 'Server error', error });
+    }
+  }
+
   // ==========================================================
   // NEW: MOBILE API — /getBusinessSetting (Laravel version)
   // POST /api/setting/getBusinessSetting

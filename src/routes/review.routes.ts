@@ -17,4 +17,8 @@ router.post("/ListOfAllReview", authJwt, (req, res) =>
   ReviewController.listOfAllReview(req, res)
 );
 
+router.post("/business-reviews", authJwt, (req, res) =>
+  ReviewController.getBusinessReviews(req, res)
+);
+
 export default router;

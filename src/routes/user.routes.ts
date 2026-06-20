@@ -122,4 +122,10 @@ router.post(
   (req, res) => userController.inactiveUser(req, res)
 );
 
+router.post(
+  "/getBusinessByUpiId",
+  authJwt,
+  (req, res) => userController.getBusinessByUpiId(req, res)
+);
+
 export default router;

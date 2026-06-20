@@ -9,19 +9,48 @@
 import { Op, Transaction } from "sequelize";
 import sequelize from "../db/sequelize";
 import User from "../models/User";
+import Business from "../models/Business";
 import CreatorPointsTransaction from "../models/CreatorPointsTransaction";
 import CreatooRequest from "../models/CreatooRequest";
-import { sendPushNotification } from "./notification.service";
+import { sendPushNotification } from "./sendPushNotification";
+import NewUserNotification from "../models/NewUserNotification";
 
 class PointsService {
+  /**
+   * Calculates active points in real-time for any credit transaction row by subtracting expired portions
+   */
+  getActivePointsForTransaction(t: any, now: Date = new Date()): number {
+    if (t.credit_debit_remaining_status !== "credit") return 0;
+
+    const createdAt = new Date(t.createdAt || t.created_at);
+    const elapsedMs = now.getTime() - createdAt.getTime();
+    const elapsedDays = elapsedMs / (1000 * 60 * 60 * 24);
+
+    const P = Number(t.points);
+    const R = Number(t.remaining_points);
+
+    let maxActive = P;
+    if (elapsedDays >= 60) {
+      maxActive = 0;
+    } else if (elapsedDays >= 30) {
+      maxActive = P * 0.50;
+    } else if (elapsedDays >= 15) {
+      maxActive = P * 0.75;
+    }
+
+    return Math.max(0, Math.min(R, maxActive));
+  }
+
   /**
    * Laravel: creatooPointsTransaction
    */
   async getCreatorPointsTransaction(userId: number) {
-    const transactions = await CreatorPointsTransaction.findAll({
+    const allTransactions = await CreatorPointsTransaction.findAll({
       where: { user_id: userId },
       order: [["created_at", "DESC"]],
     });
+
+    const transactions = allTransactions.filter((t) => Number(t.points) !== 0);
 
     if (!transactions.length) {
       return {
@@ -33,8 +62,8 @@ class PointsService {
     const now = new Date();
 
     const total_balance = transactions
-      .filter((t) => t.expiry_date && t.expiry_date >= now)
-      .reduce((sum, t) => sum + Number(t.remaining_points), 0);
+      .filter((t) => t.credit_debit_remaining_status === "credit")
+      .reduce((sum, t) => sum + this.getActivePointsForTransaction(t, now), 0);
 
     // group by business_id (skip nulls)
     const byBusiness = new Map<number, CreatorPointsTransaction[]>();
@@ -50,30 +79,35 @@ class PointsService {
     const businessTransactions: any[] = [];
 
     for (const [businessId, group] of byBusiness.entries()) {
-      const business = await User.findOne({
-        where: { id: businessId, role_id: 2 },
+      const business = await Business.findOne({
+        where: { id: businessId },
         attributes: ["id", "business_name"],
       });
 
       if (!business) continue;
 
-      const balanceForBusiness = transactions
-        .filter(
-          (t) =>
-            t.business_id === businessId &&
-            t.expiry_date &&
-            t.expiry_date >= now
-        )
-        .reduce((sum, t) => sum + Number(t.remaining_points), 0);
+      const balanceForBusiness = group
+        .filter((t) => t.credit_debit_remaining_status === "credit")
+        .reduce((sum, t) => sum + this.getActivePointsForTransaction(t, now), 0);
+
+      if (balanceForBusiness <= 0) continue;
 
       const transactionsWithExpiryStatus = group.map((t) => {
         const json = t.toJSON() as any;
-        const isExpired = json.expiry_date
-          ? new Date(json.expiry_date) < now
-          : false;
+        const active = this.getActivePointsForTransaction(t, now);
+        const isExpired = active === 0 && Number(json.remaining_points) > 0 && (now.getTime() - new Date(json.created_at).getTime()) / (1000 * 60 * 60 * 24) >= 60;
+
+        let status = json.credit_debit_remaining_status;
+        if (json.points < 0 && (json.order_id === "EXPIRED" || json.receipt_name === "EXPIRED")) {
+          status = "expired";
+        }
+
         return {
           ...json,
+          credit_debit_remaining_status: status,
           is_expired: isExpired,
+          active_points: active,
+          expired_points: json.credit_debit_remaining_status === "credit" ? Math.max(0, Number(json.remaining_points) - active) : 0,
         };
       });
 
@@ -99,7 +133,7 @@ class PointsService {
     fromDate: string,
     toDate: string
   ) {
-    const user = await User.findByPk(businessId);
+    const user = await Business.findByPk(businessId);
     if (!user) {
       return { userExists: false };
     }
@@ -177,7 +211,7 @@ class PointsService {
     });
 
     // business set_expiry / max_redemption
-    const business = await User.findByPk(business_id, {
+    const business = await Business.findByPk(business_id, {
       attributes: ["set_expiry", "max_redemption"],
     });
 
@@ -251,8 +285,8 @@ class PointsService {
           break;
       }
 
-      const businessUser = await User.findOne({
-        where: { id: businessId, role_id: 2 },
+      const businessUser = await Business.findOne({
+        where: { id: businessId },
         attributes: ["id", "business_name", "set_expiry"],
       });
 
@@ -306,6 +340,17 @@ class PointsService {
       0
     );
 
+    const maxRedeemable = Math.floor((creatorActivePoints || 0) * 0.60);
+    if (points > maxRedeemable) {
+      return {
+        status: false,
+        code: 400,
+        message: `You can only redeem up to 60% of your total Creatoo points. Max redeemable for this payment is ${maxRedeemable} points.`,
+        flag: 0,
+        data: creatorActivePoints || 0,
+      };
+    }
+
     if (points <= Number(creatorActivePoints || 0)) {
       return {
         status: true,
@@ -336,7 +381,7 @@ class PointsService {
     const { business_id, creator_id, points } = params;
 
     return await sequelize.transaction(async (t: Transaction) => {
-      const business = await User.findByPk(business_id, {
+      const business = await Business.findByPk(business_id, {
         transaction: t,
         lock: t.LOCK.UPDATE,
       });
@@ -370,6 +415,15 @@ class PointsService {
         (sum, r) => sum + Number(r.active_points),
         0
       );
+
+      const maxRedeemable = Math.floor(totalActivePoints * 0.60);
+      if (points > maxRedeemable) {
+        return {
+          status: false,
+          code: 400,
+          message: `You can only redeem up to 60% of your total Creatoo points. Max redeemable for this payment is ${maxRedeemable} points.`,
+        };
+      }
 
       if (totalActivePoints < points) {
         return {
@@ -423,17 +477,51 @@ class PointsService {
         { transaction: t }
       );
 
-      // push notification to business
-      const rememberToken = business.remember_token;
+      // 1. Notify Creator (User)
+      try {
+        if (creator.remember_token) {
+          await sendPushNotification(
+            {
+              title: "Points Transferred",
+              description: `You have successfully transferred ${points} points to ${business.business_name || "Business"}.`,
+            },
+            [creator.remember_token as string]
+          );
+        }
 
-      if (rememberToken) {
-        await sendPushNotification(
-          {
-            title: "Redeem Points Received",
-            description: `You have successfully received ${points} points.`,
-          },
-          [rememberToken as string]
-        );
+        await NewUserNotification.create({
+          user_id: creator_id,
+          notification_subject: "Points Transferred",
+          notification_text: `You have successfully transferred ${points} points to ${business.business_name || "Business"}.`,
+          business_id: business_id,
+          is_redeemed: "CreatorView",
+        } as any);
+      } catch (creatorNotifErr) {
+        console.error("Error creating creator transfer notification:", creatorNotifErr);
+      }
+
+      // 2. Notify Business
+      try {
+        const rememberToken = business.remember_token;
+        if (rememberToken) {
+          await sendPushNotification(
+            {
+              title: "Redeem Points Received",
+              description: `You have successfully received ${points} points from ${creator.name || "Customer"}.`,
+            },
+            [rememberToken as string]
+          );
+        }
+
+        await NewUserNotification.create({
+          user_id: business_id,
+          notification_subject: "Redeem Points Received",
+          notification_text: `You have successfully received ${points} points from ${creator.name || "Customer"}.`,
+          business_id: business_id,
+          is_redeemed: "BusinessView",
+        } as any);
+      } catch (businessNotifErr) {
+        console.error("Error creating business transfer notification:", businessNotifErr);
       }
 
       return {
@@ -446,6 +534,156 @@ class PointsService {
         },
       };
     });
+  }
+
+  /**
+   * Deducts loyalty points using FIFO from the oldest active credit batches of a specific business
+   */
+  async deductPoints(userId: number, businessId: number, pointsToDeduct: number, orderId: string, transaction?: any) {
+    if (pointsToDeduct <= 0) return;
+
+    const activeCredits = await CreatorPointsTransaction.findAll({
+      where: {
+        user_id: userId,
+        business_id: businessId,
+        credit_debit_remaining_status: "credit",
+        remaining_points: {
+          [Op.gt]: 0
+        }
+      },
+      order: [["created_at", "ASC"]],
+      transaction
+    });
+
+    let remainingToDeduct = pointsToDeduct;
+
+    for (const t of activeCredits) {
+      if (remainingToDeduct <= 0) break;
+
+      const activePoints = this.getActivePointsForTransaction(t);
+      if (activePoints <= 0) continue;
+
+      if (activePoints <= remainingToDeduct) {
+        remainingToDeduct -= activePoints;
+        t.remaining_points = Math.max(0, Number(t.remaining_points) - activePoints);
+        await t.save({ transaction });
+      } else {
+        t.remaining_points = Math.max(0, Number(t.remaining_points) - remainingToDeduct);
+        await t.save({ transaction });
+        remainingToDeduct = 0;
+      }
+    }
+
+    // Create a DEBIT transaction record to show redemption in history
+    await CreatorPointsTransaction.create({
+      user_id: userId,
+      business_id: businessId,
+      points: -pointsToDeduct,
+      credit_debit_remaining_status: "debit",
+      remaining_points: 0,
+      order_id: orderId,
+      business_name: activeCredits[0]?.business_name || null,
+      receipt_name: activeCredits[0]?.receipt_name || null,
+    } as any, { transaction });
+  }
+
+  /**
+   * Daily job to process tiered loyalty points expiry and notify users
+   */
+  async runDailyExpiryJob() {
+    console.log("⏰ Running Daily Loyalty Points Expiry Job...");
+    const now = new Date();
+
+    // 1. Bulk update all active credit transactions older than 62 days to 0 remaining points
+    // This handles any ancient legacy data instantly in a single query to avoid blocking startup
+    const sixtyTwoDaysAgo = new Date();
+    sixtyTwoDaysAgo.setDate(sixtyTwoDaysAgo.getDate() - 62);
+
+    try {
+      const [updatedCount] = await CreatorPointsTransaction.update(
+        { remaining_points: 0 },
+        {
+          where: {
+            credit_debit_remaining_status: "credit",
+            remaining_points: {
+              [Op.gt]: 0
+            },
+            createdAt: {
+              [Op.lt]: sixtyTwoDaysAgo
+            }
+          }
+        }
+      );
+      if (updatedCount > 0) {
+        console.log(`🧹 Cleaned up ${updatedCount} ancient legacy transactions (older than 62 days) in bulk.`);
+      }
+    } catch (bulkErr) {
+      console.error("Error bulk-expiring legacy points:", bulkErr);
+    }
+
+    // 2. Fetch only recent active transactions (created within the last 62 days) to process in-memory
+    const activeTransactions = await CreatorPointsTransaction.findAll({
+      where: {
+        credit_debit_remaining_status: "credit",
+        remaining_points: {
+          [Op.gt]: 0
+        },
+        createdAt: {
+          [Op.gte]: sixtyTwoDaysAgo
+        }
+      }
+    });
+
+    console.log(`⏰ Processing ${activeTransactions.length} recent transactions for tiered expiry...`);
+
+    for (const t of activeTransactions) {
+      const R = Number(t.remaining_points);
+      const activeNow = this.getActivePointsForTransaction(t, now);
+
+      if (activeNow < R) {
+        const expiredAmount = R - activeNow;
+
+        // Update remaining points in database
+        t.remaining_points = activeNow;
+        await t.save();
+
+        // Log "EXPIRED" transaction in CreatorPointsTransaction (negative points)
+        await CreatorPointsTransaction.create({
+          user_id: t.user_id,
+          business_id: t.business_id,
+          points: -expiredAmount,
+          credit_debit_remaining_status: "debit",
+          remaining_points: 0,
+          order_id: "EXPIRED",
+          business_name: t.business_name,
+          receipt_name: "EXPIRED",
+        } as any);
+
+        // Send Push Notification & Save Notification Log
+        try {
+          const user = await User.findByPk(t.user_id, { attributes: ["remember_token", "name"] });
+          const message = `⚠️ ${expiredAmount} loyalty points expired from ${t.business_name || 'Business'}`;
+
+          if (user?.remember_token) {
+            await sendPushNotification({
+              title: "❌ Points Expired",
+              description: message
+            }, [user.remember_token]);
+          }
+
+          await NewUserNotification.create({
+            user_id: t.user_id,
+            notification_subject: "Points Expired",
+            notification_text: message,
+            business_id: t.business_id,
+            is_redeemed: "CreatorView"
+          } as any);
+        } catch (notifErr) {
+          console.error("Error sending expiry notification:", notifErr);
+        }
+      }
+    }
+    console.log("✅ Daily Loyalty Points Expiry Job Completed.");
   }
 }
 
