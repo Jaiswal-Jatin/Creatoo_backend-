@@ -23,4 +23,20 @@ router.get('/admin/business/:id', authJwt, adminOnly, (req, res) => SettlementCo
 router.post('/admin/settle', authJwt, adminOnly, (req, res) => SettlementController.settleBusinessPayments(req, res));
 router.get('/admin/all-settlements', authJwt, adminOnly, (req, res) => SettlementController.getAllSettlements(req, res));
 
+// ================================================================
+// NEW SETTLEMENT SYSTEM (running total per business)
+// ================================================================
+
+// BUSINESS
+router.get('/business/my-settlement', authJwt, (req, res) => SettlementController.getMySettlement(req, res));
+router.get('/business/my-settlement-records', authJwt, (req, res) => SettlementController.getMySettlementRecords(req, res));
+router.get('/business/combined-settlement', authJwt, (req, res) => SettlementController.getMyCombinedSettlement(req, res));
+router.get('/business/all-records', authJwt, (req, res) => SettlementController.getMyAllRecords(req, res));
+
+// ADMIN
+router.get('/admin/unsettled-businesses', authJwt, adminOnly, (req, res) => SettlementController.getAdminUnsettledBusinesses(req, res));
+router.get('/admin/settlement-detail/:id', authJwt, adminOnly, (req, res) => SettlementController.getAdminBusinessSettlementDetail(req, res));
+router.post('/admin/settle-amount', authJwt, adminOnly, (req, res) => SettlementController.adminSettle(req, res));
+router.get('/admin/all-settlement-records', authJwt, adminOnly, (req, res) => SettlementController.getAdminAllSettlementRecords(req, res));
+
 export default router;

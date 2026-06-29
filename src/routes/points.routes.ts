@@ -56,4 +56,26 @@ router.post(
   (req, res) => PointsController.transferCreatooPoints(req, res)
 );
 
+/**
+ * Route: POST /api/points/getBusinessBonusInfo
+ * Role: Creator
+ * Description: Check if user's first visit to a business and return signup bonus info.
+ */
+router.post(
+  "/getBusinessBonusInfo",
+  authJwt,
+  (req, res) => PointsController.getBusinessBonusInfo(req, res)
+);
+
+/**
+ * Route: POST /api/points/calculateLoyaltyDiscount
+ * Role: Creator
+ * Description: Calculate loyalty discount with platform fee deduction.
+ */
+router.post(
+  "/calculateLoyaltyDiscount",
+  authJwt,
+  (req, res) => PointsController.calculateLoyaltyDiscount(req, res)
+);
+
 export default router;

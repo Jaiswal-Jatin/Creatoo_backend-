@@ -15,6 +15,7 @@ import User from '../models/User';
 import Business from '../models/Business';
 import Setting from '../models/Setting';
 import WalletTransaction from '../models/WalletTransaction';
+import BusinessSettlement from '../models/BusinessSettlement';
 import NewUserNotification from '../models/NewUserNotification';
 import { sendPushNotification } from '../services/sendPushNotification';
 
@@ -487,10 +488,16 @@ class BookingController {
 
       // ─── Fetch advance payment settings (platform fee & GST %) ───
       const setting = await Setting.findByPk(1);
-      const platformFee = Number(setting?.advance_platform_fee ?? 10);
-      const gstPercent = Number(setting?.advance_gst_percent ?? 18);
-      // GST applied on platform fee, NOT on the advance amount
-      const gstOnPlatformFee = Math.round(platformFee * (gstPercent / 100) * 100) / 100;
+      let platformFee = 0;
+      let gstPercent = 0;
+      let gstOnPlatformFee = 0;
+      if (setting?.advance_platform_fee_active) {
+        platformFee = Number(setting.advance_platform_fee ?? 0);
+        if (setting?.advance_gst_active) {
+          gstPercent = Number(setting.advance_gst_percent ?? 0);
+          gstOnPlatformFee = Math.round(platformFee * (gstPercent / 100) * 100) / 100;
+        }
+      }
       const advanceBase = Number(booking.advance_amount);
       const totalAmount = advanceBase + platformFee + gstOnPlatformFee;
       const amountInPaise = Math.round(totalAmount * 100);
@@ -643,6 +650,23 @@ class BookingController {
         });
       } catch (wtErr) {
         console.error('Failed to create wallet transaction for advance payment:', wtErr);
+      }
+
+      // ─── Add to business settlement (booking type) ───
+      try {
+        const advanceAmt = Number(booking.advance_amount) || 0;
+        if (advanceAmt > 0) {
+          const [rec] = await BusinessSettlement.findOrCreate({
+            where: { business_id: booking.business_id, type: 'booking' },
+            defaults: { business_id: booking.business_id, type: 'booking', total_amount: 0, settled_amount: 0, pending_amount: 0 },
+          });
+          const amt = Math.round(advanceAmt * 100) / 100;
+          rec.total_amount = Math.round((Number(rec.total_amount) + amt) * 100) / 100;
+          rec.pending_amount = Math.round((Number(rec.pending_amount) + amt) * 100) / 100;
+          await rec.save();
+        }
+      } catch (settleErr) {
+        console.error('Failed to add to booking settlement:', settleErr);
       }
 
       // ─── Notify Business ───

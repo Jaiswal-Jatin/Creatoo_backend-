@@ -1,15 +1,20 @@
 import { Request, Response } from "express";
 import { Op } from "sequelize";
+import axios from "axios";
+import crypto from "crypto";
 import ManualPayment from "../models/ManualPayment";
 import User from "../models/User";
 import Business from "../models/Business";
+import Setting from "../models/Setting";
 import CreatorPointsTransaction from "../models/CreatorPointsTransaction";
 import NewUserNotification from "../models/NewUserNotification";
+import BusinessSettlement from "../models/BusinessSettlement";
 import { sendPushNotification } from "../services/sendPushNotification";
 import pointsService from "../services/points.service";
 import Card from "../models/Card";
 import Visit from "../models/Visit";
 import BusinessAssociate from "../models/BusinessAssociate";
+import Booking from "../models/Booking";
 
 interface AuthRequest extends Request {
   user?: { id: number; role_id: number };
@@ -66,6 +71,21 @@ class ManualPaymentController {
       const pts = Math.min(ptsRequested, maxRedeemablePoints);
       const finalAmount = Math.max(0, afterDiscount - pts);
 
+      let platformFee = 0;
+      let gstPercent = 0;
+      let gstAmount = 0;
+      let totalAmount = finalAmount;
+
+      const setting = await Setting.findByPk(1);
+      if (setting && setting.manual_platform_fee_active) {
+        platformFee = Number(setting.manual_platform_fee) || 0;
+        if (setting.manual_gst_active) {
+          gstPercent = Number(setting.manual_gst_percent) || 0;
+          gstAmount = Math.round(platformFee * (gstPercent / 100) * 100) / 100;
+        }
+        totalAmount = Math.round((finalAmount + platformFee + gstAmount) * 100) / 100;
+      }
+
       return res.json({
         status: true,
         data: {
@@ -75,7 +95,10 @@ class ManualPaymentController {
           bill_amount: billAmt,
           points_redeemed: pts,
           final_amount: finalAmount,
-          upi_id: business.upi_id || "",
+          platform_fee: platformFee,
+          gst_percent: gstPercent,
+          gst_amount: gstAmount,
+          total_amount: totalAmount,
           business_name: business.business_name,
         },
       });
@@ -85,12 +108,80 @@ class ManualPaymentController {
     }
   }
 
+  async createRazorpayOrder(req: AuthRequest, res: Response) {
+    try {
+      const user_id = req.user?.id;
+      const { business_id, final_amount, total_amount, bill_amount, points_redeemed, points_value, discount_percentage, discount_amount } = req.body;
+
+      if (!user_id || !business_id || !final_amount || !bill_amount) {
+        return res.status(400).json({ status: false, message: "Missing required fields" });
+      }
+
+      const keyId = process.env.RAZORPAY_KEY_ID;
+      const keySecret = process.env.RAZORPAY_KEY_SECRET;
+      if (!keyId || !keySecret) {
+        return res.status(500).json({ status: false, message: "Razorpay keys not configured." });
+      }
+
+      const chargeAmount = total_amount ?? final_amount;
+      const amountInPaise = Math.round(parseFloat(chargeAmount) * 100);
+
+      const razorpayResp = await axios.post(
+        'https://api.razorpay.com/v1/orders',
+        {
+          amount: amountInPaise,
+          currency: 'INR',
+          receipt: `manual_pay_${user_id}_${Date.now()}`,
+          notes: {
+            user_id: String(user_id),
+            business_id: String(business_id),
+            type: 'manual_payment',
+          },
+        },
+        {
+          auth: { username: keyId, password: keySecret },
+          timeout: 15000,
+        }
+      );
+
+      const order = razorpayResp.data;
+
+      return res.status(200).json({
+        status: true,
+        message: "Razorpay order created",
+        data: {
+          razorpay_order_id: order.id,
+          amount: parseFloat(chargeAmount),
+          amount_in_paise: amountInPaise,
+          key_id: keyId,
+        },
+      });
+    } catch (err: any) {
+      console.error("createRazorpayOrder error:", err);
+      return res.status(500).json({ status: false, message: err.message });
+    }
+  }
+
   async submitPayment(req: AuthRequest, res: Response) {
     try {
-      const { business_id, bill_amount, points_redeemed, points_value, final_amount, discount_percentage, discount_amount } = req.body;
+      const { business_id, bill_amount, points_redeemed, points_value, final_amount, discount_percentage, discount_amount, platform_fee, gst_percent, gst_amount, razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
       const user_id = req.user?.id;
-      if (!user_id || !business_id || !bill_amount || final_amount == null) {
+      if (!user_id || !business_id || !bill_amount || final_amount == null || !razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
         return res.status(400).json({ status: false, message: "Missing required fields" });
+      }
+
+      const keySecret = process.env.RAZORPAY_KEY_SECRET;
+      if (!keySecret) {
+        return res.status(500).json({ status: false, message: "Razorpay secret not configured." });
+      }
+
+      const expectedSig = crypto
+        .createHmac("sha256", keySecret)
+        .update(razorpay_order_id + "|" + razorpay_payment_id)
+        .digest("hex");
+
+      if (expectedSig !== razorpay_signature) {
+        return res.status(400).json({ status: false, message: "Invalid Razorpay signature." });
       }
 
       const activeCredits = await CreatorPointsTransaction.findAll({
@@ -126,50 +217,21 @@ class ManualPaymentController {
         final_amount: parseFloat(final_amount),
         discount_percentage: discount_percentage != null ? parseFloat(discount_percentage) : null,
         discount_amount: discount_amount != null ? parseFloat(discount_amount) : null,
-        status: status || "PENDING",
-        payment_method: "UPI_INTENT",
-        transaction_ref: transaction_ref || null,
-        upi_id: upi_id || null,
-        payment_response: payment_response || null,
-        payment_app: payment_app || null,
+        status: "CONFIRMED",
+        payment_method: "RAZORPAY",
+        razorpay_order_id,
+        razorpay_payment_id,
+        razorpay_signature,
+        platform_fee: platform_fee != null ? parseFloat(platform_fee) : 0,
+        gst_percent: gst_percent != null ? parseFloat(gst_percent) : 0,
+        gst_amount: gst_amount != null ? parseFloat(gst_amount) : 0,
       });
 
-      let pointsEarned = 0;
-      if (payment.status === "SUCCESS") {
-        pointsEarned = await this.processSuccessfulPayment(payment);
-      }
-
-      return res.status(201).json({ status: true, message: "Payment submitted", data: payment, points_earned: pointsEarned });
-    } catch (err: any) {
-      console.error("submitPayment error:", err);
-      return res.status(500).json({ status: false, message: err.message });
-    }
-  }
-
-  async confirmPayment(req: AuthRequest, res: Response) {
-    try {
-      const { payment_id } = req.body;
-      const business_id = req.user?.id;
-      if (!payment_id) {
-        return res.status(400).json({ status: false, message: "payment_id is required" });
-      }
-      const payment = await ManualPayment.findByPk(payment_id);
-      if (!payment) {
-        return res.status(404).json({ status: false, message: "Payment not found" });
-      }
-      if (payment.business_id !== business_id) {
-        return res.status(403).json({ status: false, message: "Unauthorized" });
-      }
-      if (payment.status !== "PENDING") {
-        return res.status(400).json({ status: false, message: "Payment already processed" });
-      }
-      payment.status = "SUCCESS";
-      
       const pointsEarned = await this.processSuccessfulPayment(payment);
 
-      return res.json({ status: true, message: "Payment confirmed", points_earned: pointsEarned, data: payment });
+      return res.status(201).json({ status: true, message: "Payment successful", data: payment, points_earned: pointsEarned });
     } catch (err: any) {
-      console.error("confirmPayment error:", err);
+      console.error("submitPayment error:", err);
       return res.status(500).json({ status: false, message: err.message });
     }
   }
@@ -178,14 +240,41 @@ class ManualPaymentController {
     payment.confirmed_at = new Date();
     await payment.save();
 
-    // Deduct redeemed points if any
+    // Deduct redeemed points from ANY business credits (not just this business)
     if (payment.points_redeemed > 0) {
-      await pointsService.deductPoints(
-        payment.user_id,
-        payment.business_id,
-        payment.points_redeemed,
-        payment.id.toString()
-      );
+      const ptsToDeduct = payment.points_redeemed;
+      const allCredits = await CreatorPointsTransaction.findAll({
+        where: {
+          user_id: payment.user_id,
+          credit_debit_remaining_status: "credit",
+          remaining_points: { [Op.gt]: 0 },
+        },
+        order: [["created_at", "ASC"]],
+      });
+      let remaining = ptsToDeduct;
+      for (const tx of allCredits) {
+        if (remaining <= 0) break;
+        const avail = Number(tx.remaining_points);
+        if (avail <= 0) continue;
+        if (avail <= remaining) {
+          remaining -= avail;
+          tx.remaining_points = 0;
+        } else {
+          tx.remaining_points = avail - remaining;
+          remaining = 0;
+        }
+        await tx.save();
+      }
+      await CreatorPointsTransaction.create({
+        user_id: payment.user_id,
+        business_id: payment.business_id,
+        points: -ptsToDeduct,
+        credit_debit_remaining_status: "debit",
+        remaining_points: 0,
+        order_id: payment.id.toString(),
+        total_bill: payment.bill_amount,
+        final_bill: payment.final_amount,
+      } as any);
     }
 
     // 1) Find the associate network IDs for this business
@@ -273,6 +362,22 @@ class ManualPaymentController {
       });
     }
 
+    // Add to business settlement (bill type)
+    try {
+      const settleAmt = Math.round(Number(payment.final_amount) * 100) / 100;
+      if (settleAmt > 0) {
+        const [rec] = await BusinessSettlement.findOrCreate({
+          where: { business_id: payment.business_id, type: 'bill' },
+          defaults: { business_id: payment.business_id, type: 'bill', total_amount: 0, settled_amount: 0, pending_amount: 0 },
+        });
+        rec.total_amount = Math.round((Number(rec.total_amount) + settleAmt) * 100) / 100;
+        rec.pending_amount = Math.round((Number(rec.pending_amount) + settleAmt) * 100) / 100;
+        await rec.save();
+      }
+    } catch (settleErr) {
+      console.error('Failed to add to bill settlement:', settleErr);
+    }
+
     // Auto-mark visit on payment confirmation (replaces manual code entry)
     if (userCards.length > 0) {
       await Visit.create({
@@ -282,6 +387,34 @@ class ManualPaymentController {
         tier: activeTier,
         time: new Date(),
       });
+    }
+
+      // Send notification to the business about the payment
+    try {
+      const businessRecord = await User.findByPk(payment.business_id, {
+        attributes: ["business_name", "remember_token"],
+      });
+      const bName = businessRecord?.business_name ?? "Business";
+
+      const businessNotifText = `You have received a payment of ₹${payment.final_amount} from your customer. Status: CONFIRMED`;
+
+      await NewUserNotification.create({
+        user_id: payment.business_id,
+        order_id: null,
+        notification_subject: "Payment Received",
+        notification_text: businessNotifText,
+        is_redeemed: "BusinessView",
+        business_id: payment.business_id,
+      } as any);
+
+      if (businessRecord?.remember_token) {
+        await sendPushNotification({
+          title: "💵 Payment Received",
+          description: businessNotifText,
+        }, [businessRecord.remember_token]);
+      }
+    } catch (bizNotifErr) {
+      console.error("Error sending business payment notification:", bizNotifErr);
     }
 
     // Send "Points Earned" notification to the user
@@ -353,32 +486,6 @@ class ManualPaymentController {
     }
   }
 
-  async cancelPayment(req: AuthRequest, res: Response) {
-    try {
-      const { payment_id } = req.body;
-      const business_id = req.user?.id;
-      if (!payment_id) {
-        return res.status(400).json({ status: false, message: "payment_id is required" });
-      }
-      const payment = await ManualPayment.findByPk(payment_id);
-      if (!payment) {
-        return res.status(404).json({ status: false, message: "Payment not found" });
-      }
-      if (payment.business_id !== business_id) {
-        return res.status(403).json({ status: false, message: "Unauthorized" });
-      }
-      if (payment.status !== "PENDING") {
-        return res.status(400).json({ status: false, message: "Payment already processed" });
-      }
-      payment.status = "CANCELLED";
-      await payment.save();
-      return res.json({ status: true, message: "Payment cancelled", data: payment });
-    } catch (err: any) {
-      console.error("cancelPayment error:", err);
-      return res.status(500).json({ status: false, message: err.message });
-    }
-  }
-
   async getBusinessPayments(req: AuthRequest, res: Response) {
     try {
       const business_id = req.user?.id;
@@ -429,6 +536,14 @@ class ManualPaymentController {
         where: { business_id, status: "CONFIRMED", created_at: { [Op.gte]: startOfMonth, [Op.lt]: endOfMonth } },
       });
 
+      const dailyBookingTotal = await Booking.sum("advance_amount", {
+        where: { business_id, advance_payment_status: "paid", advance_payment_at: { [Op.gte]: startOfDay, [Op.lt]: endOfDay } },
+      });
+
+      const monthlyBookingTotal = await Booking.sum("advance_amount", {
+        where: { business_id, advance_payment_status: "paid", advance_payment_at: { [Op.gte]: startOfMonth, [Op.lt]: endOfMonth } },
+      });
+
       const recentPayments = await ManualPayment.findAll({
         where: { business_id },
         order: [["created_at", "DESC"]],
@@ -441,6 +556,8 @@ class ManualPaymentController {
         data: {
           daily_total: dailyTotal || 0,
           monthly_total: monthlyTotal || 0,
+          daily_booking_total: dailyBookingTotal || 0,
+          monthly_booking_total: monthlyBookingTotal || 0,
           recent_payments: recentPayments,
         },
       });

@@ -7,8 +7,11 @@
  * Critical: Yes (Financial/Calculations)
  */
 import { Request, Response } from "express";
+import { Op } from "sequelize";
 import Setting from "../models/Setting";
 import User from "../models/User";
+import CreatorPointsTransaction from "../models/CreatorPointsTransaction";
+import sequelize from "../db/sequelize";
 
 class SettingController {
   // =======================
@@ -234,8 +237,10 @@ class SettingController {
       return res.json({
         status: true,
         data: {
-          advance_platform_fee: setting.advance_platform_fee ?? 10,
-          advance_gst_percent: setting.advance_gst_percent ?? 18,
+          advance_platform_fee: setting.advance_platform_fee ?? 0,
+          advance_platform_fee_active: setting.advance_platform_fee_active ?? false,
+          advance_gst_percent: setting.advance_gst_percent ?? 0,
+          advance_gst_active: setting.advance_gst_active ?? false,
         },
       });
     } catch (error) {
@@ -249,7 +254,7 @@ class SettingController {
   // =====================================================
   async updateAdvancePaymentSettings(req: Request, res: Response) {
     try {
-      const { advance_platform_fee, advance_gst_percent } = req.body;
+      const { advance_platform_fee, advance_platform_fee_active, advance_gst_percent, advance_gst_active } = req.body;
       let setting = await Setting.findByPk(1);
       if (!setting) {
         setting = await Setting.create({ id: 1 } as any);
@@ -257,8 +262,14 @@ class SettingController {
       if (advance_platform_fee !== undefined) {
         setting.advance_platform_fee = Number(advance_platform_fee);
       }
+      if (advance_platform_fee_active !== undefined) {
+        setting.advance_platform_fee_active = Boolean(advance_platform_fee_active);
+      }
       if (advance_gst_percent !== undefined) {
         setting.advance_gst_percent = Number(advance_gst_percent);
+      }
+      if (advance_gst_active !== undefined) {
+        setting.advance_gst_active = Boolean(advance_gst_active);
       }
       await setting.save();
       return res.json({
@@ -266,7 +277,9 @@ class SettingController {
         message: 'Advance payment settings updated.',
         data: {
           advance_platform_fee: setting.advance_platform_fee,
+          advance_platform_fee_active: setting.advance_platform_fee_active,
           advance_gst_percent: setting.advance_gst_percent,
+          advance_gst_active: setting.advance_gst_active,
         },
       });
     } catch (error) {
@@ -328,6 +341,179 @@ class SettingController {
         status: false,
         message: "Failed",
       });
+    }
+  }
+  // =====================================================
+  // ADMIN: GET Manual Payment Fee Settings
+  // GET /api/setting/manual-payment-fee
+  // =====================================================
+  async getManualPaymentFeeSettings(req: Request, res: Response) {
+    try {
+      let setting = await Setting.findByPk(1);
+      if (!setting) {
+        setting = await Setting.create({ id: 1 } as any);
+      }
+      return res.json({
+        status: true,
+        data: {
+          manual_platform_fee: setting.manual_platform_fee ?? 0,
+          manual_platform_fee_active: setting.manual_platform_fee_active ?? false,
+          manual_gst_percent: setting.manual_gst_percent ?? 0,
+          manual_gst_active: setting.manual_gst_active ?? false,
+        },
+      });
+    } catch (error) {
+      return res.status(500).json({ status: false, message: 'Server error', error });
+    }
+  }
+
+  // =====================================================
+  // ADMIN: UPDATE Manual Payment Fee Settings
+  // PUT /api/setting/manual-payment-fee
+  // =====================================================
+  async updateManualPaymentFeeSettings(req: Request, res: Response) {
+    try {
+      const { manual_platform_fee, manual_platform_fee_active, manual_gst_percent, manual_gst_active } = req.body;
+      let setting = await Setting.findByPk(1);
+      if (!setting) {
+        setting = await Setting.create({ id: 1 } as any);
+      }
+      if (manual_platform_fee !== undefined) {
+        setting.manual_platform_fee = Number(manual_platform_fee);
+      }
+      if (manual_platform_fee_active !== undefined) {
+        setting.manual_platform_fee_active = Boolean(manual_platform_fee_active);
+      }
+      if (manual_gst_percent !== undefined) {
+        setting.manual_gst_percent = Number(manual_gst_percent);
+      }
+      if (manual_gst_active !== undefined) {
+        setting.manual_gst_active = Boolean(manual_gst_active);
+      }
+      await setting.save();
+      return res.json({
+        status: true,
+        message: 'Manual payment fee settings updated.',
+        data: {
+          manual_platform_fee: setting.manual_platform_fee,
+          manual_platform_fee_active: setting.manual_platform_fee_active,
+          manual_gst_percent: setting.manual_gst_percent,
+          manual_gst_active: setting.manual_gst_active,
+        },
+      });
+    } catch (error) {
+      return res.status(500).json({ status: false, message: 'Server error', error });
+    }
+  }
+
+  // =====================================================
+  // ADMIN: GET Signup Bonus Points Setting
+  // GET /api/setting/signup-bonus
+  // =====================================================
+  async getSignupBonusPoints(req: Request, res: Response) {
+    try {
+      let setting = await Setting.findByPk(1);
+      if (!setting) {
+        setting = await Setting.create({ id: 1 } as any);
+      }
+      return res.json({
+        status: true,
+        data: {
+          signup_bonus_points: setting.signup_bonus_points ?? 50,
+        },
+      });
+    } catch (error) {
+      return res.status(500).json({ status: false, message: 'Server error', error });
+    }
+  }
+
+  // =====================================================
+  // ADMIN: UPDATE Signup Bonus Points (with incremental logic)
+  // PUT /api/setting/signup-bonus
+  // =====================================================
+  async updateSignupBonusPoints(req: Request, res: Response) {
+    try {
+      const { signup_bonus_points } = req.body;
+
+      if (signup_bonus_points === undefined || isNaN(Number(signup_bonus_points)) || Number(signup_bonus_points) < 0) {
+        return res.status(400).json({ status: false, message: "Invalid signup_bonus_points value" });
+      }
+
+      const newValue = Math.round(Number(signup_bonus_points));
+
+      let setting = await Setting.findByPk(1);
+      if (!setting) {
+        setting = await Setting.create({ id: 1, signup_bonus_points: newValue } as any);
+        return res.json({
+          status: true,
+          message: "Setting created.",
+          data: { signup_bonus_points: newValue },
+        });
+      }
+
+      const oldValue = setting.signup_bonus_points ?? 50;
+      const diff = newValue - oldValue;
+
+      if (diff > 0) {
+        const signupTxns = await CreatorPointsTransaction.findAll({
+          where: {
+            order_id: { [Op.like]: 'SIGNUP_BONUS_%' },
+            business_id: null,
+            credit_debit_remaining_status: 'credit',
+          },
+        });
+
+        const t = await sequelize.transaction();
+        try {
+          for (const txn of signupTxns) {
+            const originalPoints = txn.points;
+            const remainingPoints = txn.remaining_points;
+            const usedPoints = originalPoints - remainingPoints;
+
+            const newRemaining = Math.max(newValue - usedPoints, 0);
+            const additionalRemaining = newRemaining - remainingPoints;
+
+            if (additionalRemaining > 0) {
+              await txn.update({
+                points: newValue,
+                remaining_points: newRemaining,
+              }, { transaction: t });
+
+              await User.increment(
+                { user_creatoo_points: additionalRemaining },
+                { where: { id: txn.user_id }, transaction: t }
+              );
+            }
+          }
+
+          setting.signup_bonus_points = newValue;
+          await setting.save({ transaction: t });
+          await t.commit();
+        } catch (err) {
+          await t.rollback();
+          throw err;
+        }
+
+        return res.json({
+          status: true,
+          message: `Signup bonus updated to ${newValue}. Existing users received +${diff} additional points.`,
+          data: { signup_bonus_points: newValue, applied_diff: diff },
+        });
+      } else {
+        setting.signup_bonus_points = newValue;
+        await setting.save();
+
+        return res.json({
+          status: true,
+          message: diff < 0
+            ? `Signup bonus updated to ${newValue}. Existing user points unchanged.`
+            : `Signup bonus remains ${newValue}. No changes needed.`,
+          data: { signup_bonus_points: newValue, applied_diff: 0 },
+        });
+      }
+    } catch (error) {
+      console.error('updateSignupBonusPoints error:', error);
+      return res.status(500).json({ status: false, message: 'Server error', error });
     }
   }
 }

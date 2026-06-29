@@ -6,6 +6,8 @@ import Business from '../models/Business';
 import User from '../models/User';
 import Order from '../models/Order';
 import Booking from '../models/Booking';
+import BusinessSettlement from '../models/BusinessSettlement';
+import SettlementRecord from '../models/SettlementRecord';
 
 class SettlementController {
 
@@ -441,6 +443,306 @@ class SettlementController {
       return res.json({ status: true, data: result });
     } catch (error) {
       console.error('getAllSettlements error:', error);
+      return res.status(500).json({ status: false, message: 'Server error' });
+    }
+  }
+
+  // ================================================================
+  // NEW SETTLEMENT SYSTEM (running total per business)
+  // ================================================================
+
+  /**
+   * Internal: Add amount to a business's pending settlement (called after payment confirm)
+   */
+  async addToSettlement(businessId: number, type: 'bill' | 'booking', amount: number) {
+    if (amount <= 0) return;
+    const [record] = await BusinessSettlement.findOrCreate({
+      where: { business_id: businessId, type },
+      defaults: { business_id: businessId, type, total_amount: 0, settled_amount: 0, pending_amount: 0 },
+    });
+    const amt = Math.round(amount * 100) / 100;
+    record.total_amount = Math.round((Number(record.total_amount) + amt) * 100) / 100;
+    record.pending_amount = Math.round((Number(record.pending_amount) + amt) * 100) / 100;
+    await record.save();
+  }
+
+  // ─── BUSINESS APIs ───
+
+  async getMySettlement(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.id;
+      const type = req.query.type as string;
+      if (!type || !['bill', 'booking'].includes(type)) {
+        return res.status(400).json({ status: false, message: 'type must be bill or booking' });
+      }
+      const record = await BusinessSettlement.findOne({
+        where: { business_id: userId, type },
+      });
+      if (!record) {
+        return res.json({ status: true, data: { total_amount: 0, settled_amount: 0, pending_amount: 0 } });
+      }
+      return res.json({
+        status: true,
+        data: {
+          total_amount: Number(record.total_amount),
+          settled_amount: Number(record.settled_amount),
+          pending_amount: Number(record.pending_amount),
+        },
+      });
+    } catch (error) {
+      console.error('getMySettlement error:', error);
+      return res.status(500).json({ status: false, message: 'Server error' });
+    }
+  }
+
+  async getMySettlementRecords(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.id;
+      const type = req.query.type as string;
+      if (!type || !['bill', 'booking'].includes(type)) {
+        return res.status(400).json({ status: false, message: 'type must be bill or booking' });
+      }
+      const records = await SettlementRecord.findAll({
+        where: { business_id: userId, type },
+        order: [['created_at', 'DESC']],
+        limit: 100,
+      });
+      return res.json({
+        status: true,
+        data: records.map((r: any) => ({
+          id: r.id,
+          amount: Number(r.amount),
+          bill_amount: Number(r.bill_amount),
+          booking_amount: Number(r.booking_amount),
+          remaining_after: Number(r.remaining_after),
+          notes: r.notes,
+          created_at: r.created_at,
+        })),
+      });
+    } catch (error) {
+      console.error('getMySettlementRecords error:', error);
+      return res.status(500).json({ status: false, message: 'Server error' });
+    }
+  }
+
+  // GET /api/settlement/business/combined-settlement
+  async getMyCombinedSettlement(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.id;
+      const billSettlement = await BusinessSettlement.findOne({ where: { business_id: userId, type: 'bill' } });
+      const bookingSettlement = await BusinessSettlement.findOne({ where: { business_id: userId, type: 'booking' } });
+      return res.json({
+        status: true,
+        data: {
+          total_amount: (Number(billSettlement?.total_amount || 0) + Number(bookingSettlement?.total_amount || 0)),
+          settled_amount: (Number(billSettlement?.settled_amount || 0) + Number(bookingSettlement?.settled_amount || 0)),
+          pending_amount: (Number(billSettlement?.pending_amount || 0) + Number(bookingSettlement?.pending_amount || 0)),
+          bill_pending: Number(billSettlement?.pending_amount || 0),
+          booking_pending: Number(bookingSettlement?.pending_amount || 0),
+          bill_total: Number(billSettlement?.total_amount || 0),
+          booking_total: Number(bookingSettlement?.total_amount || 0),
+        },
+      });
+    } catch (error) {
+      console.error('getMyCombinedSettlement error:', error);
+      return res.status(500).json({ status: false, message: 'Server error' });
+    }
+  }
+
+  // GET /api/settlement/business/all-records?from_date=&to_date=
+  async getMyAllRecords(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.id;
+      const { from_date, to_date } = req.query;
+      const where: any = { business_id: userId };
+      if (from_date && to_date) {
+        where.created_at = {
+          [Op.gte]: new Date(from_date as string),
+          [Op.lte]: new Date(to_date as string + 'T23:59:59.999Z'),
+        };
+      }
+      const records = await SettlementRecord.findAll({
+        where,
+        order: [['created_at', 'DESC']],
+        limit: 200,
+      });
+      return res.json({
+        status: true,
+        data: records.map((r: any) => ({
+          id: r.id,
+          amount: Number(r.amount),
+          bill_amount: Number(r.bill_amount),
+          booking_amount: Number(r.booking_amount),
+          type: r.type,
+          remaining_after: Number(r.remaining_after),
+          notes: r.notes,
+          created_at: r.created_at,
+        })),
+        total: records.length,
+      });
+    } catch (error) {
+      console.error('getMyAllRecords error:', error);
+      return res.status(500).json({ status: false, message: 'Server error' });
+    }
+  }
+
+  // ─── ADMIN APIs ───
+
+  async getAdminUnsettledBusinesses(req: Request, res: Response) {
+    try {
+      const type = (req.query.type as string) || 'bill';
+      const records = await BusinessSettlement.findAll({
+        where: { type, pending_amount: { [Op.gt]: 0 } },
+        order: [['pending_amount', 'DESC']],
+      });
+      const businessIds = records.map((r: any) => r.business_id);
+      const businesses = await User.findAll({
+        where: { id: businessIds },
+        attributes: ['id', 'business_name'],
+      });
+      const bizMap = new Map(businesses.map((b: any) => [b.id, b.business_name]));
+      const data = records.map((r: any) => ({
+        business_id: r.business_id,
+        business_name: bizMap.get(r.business_id) || 'Unknown',
+        total_amount: Number(r.total_amount),
+        settled_amount: Number(r.settled_amount),
+        pending_amount: Number(r.pending_amount),
+      }));
+      const grandTotal = data.reduce((s, d) => s + d.pending_amount, 0);
+      return res.json({ status: true, data, grand_total_pending: grandTotal, total_businesses: data.length });
+    } catch (error) {
+      console.error('getAdminUnsettledBusinesses error:', error);
+      return res.status(500).json({ status: false, message: 'Server error' });
+    }
+  }
+
+  async getAdminBusinessSettlementDetail(req: Request, res: Response) {
+    try {
+      const businessId = Number(req.params.id);
+      const type = (req.query.type as string) || 'bill';
+      const settlement = await BusinessSettlement.findOne({
+        where: { business_id: businessId, type },
+      });
+      const records = await SettlementRecord.findAll({
+        where: { business_id: businessId, type },
+        order: [['created_at', 'DESC']],
+        limit: 100,
+      });
+      const business = await User.findByPk(businessId, { attributes: ['id', 'business_name'] });
+      return res.json({
+        status: true,
+        data: {
+          business: business ? { id: business.id, name: business.business_name } : null,
+          settlement: settlement
+            ? { total_amount: Number(settlement.total_amount), settled_amount: Number(settlement.settled_amount), pending_amount: Number(settlement.pending_amount) }
+            : { total_amount: 0, settled_amount: 0, pending_amount: 0 },
+          records: records.map((r: any) => ({
+            id: r.id,
+            amount: Number(r.amount),
+            remaining_after: Number(r.remaining_after),
+            notes: r.notes,
+            created_at: r.created_at,
+          })),
+        },
+      });
+    } catch (error) {
+      console.error('getAdminBusinessSettlementDetail error:', error);
+      return res.status(500).json({ status: false, message: 'Server error' });
+    }
+  }
+
+  async adminSettle(req: Request, res: Response) {
+    try {
+      const adminId = (req as any).user?.id;
+      const { business_id, bill_amount, booking_amount, notes } = req.body;
+      if (!business_id) {
+        return res.status(400).json({ status: false, message: 'business_id required' });
+      }
+      const billAmt = Math.round(Number(bill_amount || 0) * 100) / 100;
+      const bookingAmt = Math.round(Number(booking_amount || 0) * 100) / 100;
+      const totalAmt = billAmt + bookingAmt;
+      if (totalAmt <= 0) {
+        return res.status(400).json({ status: false, message: 'At least one of bill_amount or booking_amount must be > 0' });
+      }
+
+      // Deduct from bill settlement
+      if (billAmt > 0) {
+        const billSettlement = await BusinessSettlement.findOne({ where: { business_id, type: 'bill' } });
+        if (!billSettlement || Number(billSettlement.pending_amount) <= 0) {
+          return res.status(400).json({ status: false, message: 'No pending bill amount for this business' });
+        }
+        if (billAmt > Number(billSettlement.pending_amount)) {
+          return res.status(400).json({ status: false, message: `Bill settlement amount (${billAmt}) exceeds pending (${billSettlement.pending_amount})` });
+        }
+        const newBillPending = Math.round((Number(billSettlement.pending_amount) - billAmt) * 100) / 100;
+        billSettlement.settled_amount = Math.round((Number(billSettlement.settled_amount) + billAmt) * 100) / 100;
+        billSettlement.pending_amount = newBillPending;
+        await billSettlement.save();
+      }
+
+      // Deduct from booking settlement
+      if (bookingAmt > 0) {
+        const bookingSettlement = await BusinessSettlement.findOne({ where: { business_id, type: 'booking' } });
+        if (!bookingSettlement || Number(bookingSettlement.pending_amount) <= 0) {
+          return res.status(400).json({ status: false, message: 'No pending booking amount for this business' });
+        }
+        if (bookingAmt > Number(bookingSettlement.pending_amount)) {
+          return res.status(400).json({ status: false, message: `Booking settlement amount (${bookingAmt}) exceeds pending (${bookingSettlement.pending_amount})` });
+        }
+        const newBookingPending = Math.round((Number(bookingSettlement.pending_amount) - bookingAmt) * 100) / 100;
+        bookingSettlement.settled_amount = Math.round((Number(bookingSettlement.settled_amount) + bookingAmt) * 100) / 100;
+        bookingSettlement.pending_amount = newBookingPending;
+        await bookingSettlement.save();
+      }
+
+      const recordType = (billAmt > 0 && bookingAmt > 0) ? 'combined' : (billAmt > 0 ? 'bill' : 'booking');
+      await SettlementRecord.create({
+        business_id,
+        type: recordType,
+        amount: totalAmt,
+        bill_amount: billAmt,
+        booking_amount: bookingAmt,
+        remaining_after: 0,
+        notes: notes || null,
+        settled_by: adminId,
+      } as any);
+
+      return res.json({
+        status: true,
+        message: `₹${totalAmt} settled (Bill: ₹${billAmt}, Booking: ₹${bookingAmt})`,
+      });
+    } catch (error) {
+      console.error('adminSettle error:', error);
+      return res.status(500).json({ status: false, message: 'Server error' });
+    }
+  }
+
+  async getAdminAllSettlementRecords(req: Request, res: Response) {
+    try {
+      const type = (req.query.type as string) || 'bill';
+      const records = await SettlementRecord.findAll({
+        where: { type },
+        order: [['created_at', 'DESC']],
+        limit: 200,
+      });
+      const businessIds = [...new Set(records.map((r: any) => r.business_id))];
+      const businesses = await User.findAll({
+        where: { id: businessIds },
+        attributes: ['id', 'business_name'],
+      });
+      const bizMap = new Map(businesses.map((b: any) => [b.id, b.business_name]));
+      const data = records.map((r: any) => ({
+        id: r.id,
+        business_id: r.business_id,
+        business_name: bizMap.get(r.business_id) || 'Unknown',
+        amount: Number(r.amount),
+        remaining_after: Number(r.remaining_after),
+        notes: r.notes,
+        created_at: r.created_at,
+      }));
+      return res.json({ status: true, data });
+    } catch (error) {
+      console.error('getAdminAllSettlementRecords error:', error);
       return res.status(500).json({ status: false, message: 'Server error' });
     }
   }

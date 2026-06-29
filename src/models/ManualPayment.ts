@@ -15,16 +15,22 @@ export interface ManualPaymentAttrs {
   payment_method: string;
   transaction_ref?: string | null;
   upi_id?: string | null;
+  razorpay_order_id?: string | null;
+  razorpay_payment_id?: string | null;
+  razorpay_signature?: string | null;
   payment_response?: object | null;
   payment_app?: string | null;
   paid_at: Date | null;
   confirmed_at: Date | null;
+  platform_fee: number;
+  gst_percent: number;
+  gst_amount: number;
   created_at: Date;
   updated_at: Date;
 }
 
 export interface ManualPaymentCreationAttrs
-  extends Optional<ManualPaymentAttrs, "id" | "transaction_ref" | "upi_id" | "payment_response" | "payment_app" | "paid_at" | "confirmed_at" | "created_at" | "updated_at"> {}
+  extends Optional<ManualPaymentAttrs, "id" | "transaction_ref" | "upi_id" | "razorpay_order_id" | "razorpay_payment_id" | "razorpay_signature" | "payment_response" | "payment_app" | "paid_at" | "confirmed_at" | "created_at" | "updated_at"> {}
 
 class ManualPayment
   extends Model<ManualPaymentAttrs, ManualPaymentCreationAttrs>
@@ -43,10 +49,16 @@ class ManualPayment
   declare payment_method: string;
   declare transaction_ref: string | null;
   declare upi_id: string | null;
+  declare razorpay_order_id: string | null;
+  declare razorpay_payment_id: string | null;
+  declare razorpay_signature: string | null;
   declare payment_response: object | null;
   declare payment_app: string | null;
   declare paid_at: Date | null;
   declare confirmed_at: Date | null;
+  declare platform_fee: number;
+  declare gst_percent: number;
+  declare gst_amount: number;
   declare readonly created_at: Date;
   declare readonly updated_at: Date;
 }
@@ -73,10 +85,16 @@ ManualPayment.init(
     payment_method: { type: DataTypes.STRING, allowNull: false, defaultValue: "MANUAL" },
     transaction_ref: { type: DataTypes.STRING, allowNull: true },
     upi_id: { type: DataTypes.STRING, allowNull: true },
+    razorpay_order_id: { type: DataTypes.STRING, allowNull: true },
+    razorpay_payment_id: { type: DataTypes.STRING, allowNull: true },
+    razorpay_signature: { type: DataTypes.STRING, allowNull: true },
     payment_response: { type: DataTypes.JSON, allowNull: true },
     payment_app: { type: DataTypes.STRING, allowNull: true },
     paid_at: { type: DataTypes.DATE, allowNull: true },
     confirmed_at: { type: DataTypes.DATE, allowNull: true },
+    platform_fee: { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0 },
+    gst_percent: { type: DataTypes.DECIMAL(5, 2), allowNull: false, defaultValue: 0 },
+    gst_amount: { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0 },
     created_at: { type: DataTypes.DATE, allowNull: true },
     updated_at: { type: DataTypes.DATE, allowNull: true },
   },

@@ -647,7 +647,16 @@ class WebApiController {
         // Combine regular discount % + points redemption
         const regularDiscountAmount = (originalBillAmount * regularDiscountPct) / 100;
         const remainingAfterRegular = originalBillAmount - regularDiscountAmount;
-        const maxRedeemablePoints = Math.floor(balanceForBusiness * 0.60);
+        
+        // Max 60% of available points
+        const maxRedeemableFromPoints = Math.floor(balanceForBusiness * 0.60);
+        
+        // Max 60% of the bill amount
+        const maxRedeemableFromBill = Math.floor(originalBillAmount * 0.60);
+        
+        // Max redeemable is the minimum of both limits
+        const maxRedeemablePoints = Math.min(maxRedeemableFromPoints, maxRedeemableFromBill);
+        
         const pointsToRedeem = Math.min(maxRedeemablePoints, Math.max(0, remainingAfterRegular));
         discountAmount = regularDiscountAmount + pointsToRedeem;
         pointsRedeemedHere = pointsToRedeem;

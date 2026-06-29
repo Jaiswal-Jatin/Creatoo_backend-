@@ -95,4 +95,63 @@ router.get(
   (req, res) => SettingController.getAdvancePaymentSettings(req, res)
 );
 
+/**
+ * Route: GET /api/setting/manual-payment-fee
+ * Role: Admin
+ * Description: Get manual payment fee settings (platform fee & GST).
+ */
+router.get(
+  "/manual-payment-fee",
+  authJwt,
+  adminOnly,
+  (req, res) => SettingController.getManualPaymentFeeSettings(req, res)
+);
+
+/**
+ * Route: PUT /api/setting/manual-payment-fee
+ * Role: Admin
+ * Description: Update manual payment fee settings.
+ */
+router.put(
+  "/manual-payment-fee",
+  authJwt,
+  adminOnly,
+  (req, res) => SettingController.updateManualPaymentFeeSettings(req, res)
+);
+
+/**
+ * Route: GET /api/setting/manual-payment-fee/public
+ * Role: Public (authenticated user)
+ * Description: Get manual payment fee settings for mobile app display.
+ */
+router.get(
+  "/manual-payment-fee/public",
+  authJwt,
+  (req, res) => SettingController.getManualPaymentFeeSettings(req, res)
+);
+
+/**
+ * Route: GET /api/setting/signup-bonus
+ * Role: Admin
+ * Description: Get current signup bonus points setting.
+ */
+router.get(
+  "/signup-bonus",
+  authJwt,
+  adminOnly,
+  (req, res) => SettingController.getSignupBonusPoints(req, res)
+);
+
+/**
+ * Route: PUT /api/setting/signup-bonus
+ * Role: Admin
+ * Description: Update signup bonus points with incremental adjustment for existing users.
+ */
+router.put(
+  "/signup-bonus",
+  authJwt,
+  adminOnly,
+  (req, res) => SettingController.updateSignupBonusPoints(req, res)
+);
+
 export default router;

@@ -100,8 +100,8 @@ class SeedManager {
       
       if (count === 0) {
         await this.sequelize.query(`
-          INSERT INTO settings (cgst_percent, sgst_percent, igst_percent, platform_fee_percent, gateway_charges, reverse_gateway_charges, creatoo_points, advance_platform_fee, advance_gst_percent, created_at, updated_at)
-          VALUES (9.0, 9.0, 18.0, 2.0, 2.0, 2.0, 1.0, 10.0, 18.0, NOW(), NOW())
+          INSERT INTO settings (cgst_percent, sgst_percent, igst_percent, platform_fee_percent, gateway_charges, reverse_gateway_charges, creatoo_points, advance_platform_fee, advance_gst_percent, signup_bonus_points, created_at, updated_at)
+          VALUES (9.0, 9.0, 18.0, 2.0, 2.0, 2.0, 1.0, 10.0, 18.0, 50, NOW(), NOW())
         `);
         
         this.changes.push('🌱 Default settings created');

@@ -21,6 +21,8 @@ import { saveCompressedImage, deleteIfExists } from "../services/storage.service
 import { Op } from "sequelize";
 import { validateCategoryAttributes } from "../utils/categoryValidator";
 import Card from "../models/Card";
+import Setting from "../models/Setting";
+import CreatorPointsTransaction from "../models/CreatorPointsTransaction";
 
 const ADMIN_BYPASS_OTP = "121512";
 const BUSINESS_ROLE_ID = 2; // same as you used in businessRegister
@@ -153,6 +155,38 @@ const AuthController = {
         console.error("Auto card assignment error (non-blocking):", cardErr);
       }
 
+      // Auto-credit signup bonus points
+      let bonusPoints = 0;
+      try {
+        const setting = await Setting.findByPk(1);
+        bonusPoints = setting?.signup_bonus_points ?? 50;
+
+        if (bonusPoints > 0) {
+          await User.update(
+            { user_creatoo_points: bonusPoints },
+            { where: { id: user.id } }
+          );
+
+          await CreatorPointsTransaction.create({
+            user_id: user.id,
+            business_id: null,
+            order_id: `SIGNUP_BONUS_${user.id}_${Date.now()}`,
+            points: bonusPoints,
+            remaining_points: bonusPoints,
+            credit_debit_remaining_status: 'credit',
+            business_name: 'Signup Bonus',
+            total_bill: null,
+            settlement_amount: null,
+            discount_percentage: null,
+            final_bill: null,
+            receipt_name: 'Registration Bonus',
+            reverse_gateway_charges: null,
+          } as any);
+        }
+      } catch (bonusErr) {
+        console.error('Signup bonus credit error (non-blocking):', bonusErr);
+      }
+
       const token = issueToken(user);
       return res.json({
         status: true,
@@ -166,6 +200,7 @@ const AuthController = {
           address: user.address,
           image: imageUrl,
           role_id: user.role_id,
+          signup_bonus_points: bonusPoints,
         },
       });
     } catch (err) {
